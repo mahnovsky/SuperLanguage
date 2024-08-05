@@ -1,0 +1,13 @@
+let x = 12;
+let y = 3 * ((x + 2) * (9 - 10));
+y = 2.5;
+let test = x * y / 9;
+let foo = {
+	let miha = 15.0 / x;
+	x = miha * y;
+	{
+		miha = 0;
+	}
+}
+foo();
+miha = 1;
