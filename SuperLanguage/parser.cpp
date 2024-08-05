@@ -33,7 +33,7 @@ std::vector<Node*> Parser::statementList()
 
 	while(_current != _tokens.end())
 	{
-		if(_current->type == TokType::ScopeEnd)
+		if(_current->type == TT_ScopeEnd)
 		{
 			break;
 		}
@@ -41,7 +41,7 @@ std::vector<Node*> Parser::statementList()
 		nodes.push_back(statement());
 		if (!_skip_semicolon)
 		{
-			eat(TokType::Semicolon);
+			eat(TT_Semicolon);
 		}
 		else
 		{
@@ -59,39 +59,51 @@ Node* Parser::statement()
 		return nullptr;
 	}
 
-	if(_current->type == TokType::Let)
+	if(_current->type == TT_Let)
 	{
-		eat(TokType::Let);
+		eat(TT_Let);
 		std::string var = _current->name;
-		eat(TokType::Assign);
-		if(_current->type == TokType::ScopeBegin)
+		eat(TT_Id);
+		eat(TT_Assign);
+		if(_current->type == TT_Fn)
 		{
 			return new Assign(std::move(var), statement(), true);
 		}
 		return new Assign(std::move(var), expression(), true);
 	}
-	if(_current->type == TokType::Assign)
+
+	if(_current->type == TT_Id)
 	{
 		std::string var = _current->name;
-		eat(TokType::Assign);
+		eat(TT_Id);
+
+		if(_current->type == TT_LParen)
+		{
+			eat(TT_LParen);
+			eat(TT_RParen);
+			return new Call(std::move(var));
+		}
+
+		eat(TT_Assign);
 		return new Assign(std::move(var), expression());
 	}
 
-	if(_current->type == TokType::ScopeBegin)
+	if(_current->type == TT_ScopeBegin)
 	{
-		eat(TokType::ScopeBegin);
+		eat(TT_ScopeBegin);
 		auto nodes = statementList();
-		eat(TokType::ScopeEnd);
+		eat(TT_ScopeEnd);
 		_skip_semicolon = true;
 		return new Scope(std::move(nodes));
 	}
 
-	if(_current->type == TokType::Call)
+	if(_current->type == TT_Fn)
 	{
-		auto name = _current->name;
-		eat(TokType::Call);
+		eat(TT_Fn);
+		eat(TT_LParen);
+		eat(TT_RParen);
 
-		return new Call(std::move(name));
+		return statement();
 	}
 
 	return nullptr;
@@ -101,9 +113,9 @@ Node* Parser::expression()
 {
 	auto node = term();
 
-	while (_current->type == TokType::Plus || _current->type == TokType::Minus)
+	while (_current->type == TT_Plus || _current->type == TT_Minus)
 	{
-		char op = _current->type == TokType::Plus ? '+' : '-';
+		const char op = _current->type == TT_Plus ? '+' : '-';
 		eat(_current->type);
 		node = new BinaryOperation(node, term(), op);
 	}
@@ -113,23 +125,23 @@ Node* Parser::expression()
 
 Node* Parser::factor()
 {
-	if(_current->type == TokType::LParen)
+	if(_current->type == TT_LParen)
 	{
-		eat(TokType::LParen);
+		eat(TT_LParen);
 		Node* expr = expression();
-		eat(TokType::RParen);
+		eat(TT_RParen);
 		return expr;
 	}
-	if(_current->type == TokType::Variable)
+	if(_current->type == TT_Id)
 	{
 		std::string name = _current->name;
-		eat(TokType::Variable);
+		eat(TT_Id);
 		return new Variable(std::move(name));
 	}
-	if(_current->type == TokType::NumberLiteral)
+	if(_current->type == TT_NumberLiteral)
 	{
 		ObjectPtr f = _current->object;
-		eat(TokType::NumberLiteral);
+		eat(TT_NumberLiteral);
 		return new NumberLiteral(f);
 	}
 	
@@ -140,9 +152,9 @@ Node* Parser::term()
 {
 	auto node = factor();
 
-	while(_current->type == TokType::Mul || _current->type == TokType::Div)
+	while(_current->type == TT_Mul || _current->type == TT_Div)
 	{
-		const char op = _current->type == TokType::Mul ? '*' : '/';
+		const char op = _current->type == TT_Mul ? '*' : '/';
 		eat(_current->type);
 		node = new BinaryOperation(node, factor(), op);
 	}

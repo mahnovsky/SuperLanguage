@@ -7,28 +7,28 @@
 
 #include <variant>
 
-enum class TokType : uint32_t
+enum TokType : uint32_t
 {
-	Let				= 1 << 1,
-	Operation		= 1 << 2,
-	Id				= 1 << 3,
-	NumberLiteral	= 1 << 4,
-	Assign			= 1 << 5,
-	Semicolon		= 1 << 6,
+	TT_Let = 1 << 1,
+	TT_Operation = 1 << 2,
+	TT_Id = 1 << 3,
+	TT_NumberLiteral = 1 << 4,
+	TT_Assign = 1 << 5,
+	TT_Semicolon = 1 << 6,
 
-	Plus			= 1 << 7,
-	Minus			= 1 << 8,
-	Mul				= 1 << 9,
-	Div				= 1 << 10,
+	TT_Plus = 1 << 7,
+	TT_Minus = 1 << 8,
+	TT_Mul = 1 << 9,
+	TT_Div = 1 << 10,
 
-	LParen			= 1 << 11,
-	RParen			= 1 << 12,
+	TT_LParen = 1 << 11,
+	TT_RParen = 1 << 12,
 
-	ScopeBegin		= 1 << 13,
-	ScopeEnd		= 1 << 14
+	TT_ScopeBegin = 1 << 13,
+	TT_ScopeEnd = 1 << 14,
+
+	TT_Fn = 1 << 15
 };
-
-#define TOK_INT(tok) static_cast<uint32_t>(TokType:: tok)
 
 using ObjectPtr = std::shared_ptr<Object>;
 
@@ -37,6 +37,8 @@ struct Token
 	TokType type;
 	ObjectPtr object;
 	std::string name;
+	int line = 0;
+	int pos = 0;
 
 	Token(TokType t)
 		:type(t)
@@ -58,35 +60,29 @@ public:
 private:
 	static std::optional<TokType> match_op(char ch);
 
-	std::string_view read_word();
+	std::string_view read_word() const;
 
-	ObjectPtr read_number();
+	std::string_view read_number() const;
 
 	void process_line();
 
-	void put_number_literal(ObjectPtr number);
+	bool try_put_token(TokType tok, char ch);
 
-	void put_operation(char op);
+	bool try_put_token(TokType tok, const std::string_view& match_word);
 
-	void put_declaration();
+	bool try_put_number_literal();
 
-	void put_semicolon();
+	bool try_put_operation();
 
-	void put_assign(std::string&& name);
-
-	void put_id(std::string&& name);
-
-	void put_lparen();
-
-	void put_rparen();
-
-	void put_scope_begin();
-
-	void put_scope_end();
+	bool try_put_id();
 
 	void eat(char ch);
 
+	void eat_current();
+
 	void eat_until_not(char ch, bool expect_once = false);
+
+	void eat(const std::string_view& word);
 
 	void fatal_error(const std::string& error_msg);
 
@@ -96,4 +92,5 @@ private:
 	std::string::const_iterator _begin;
 	std::string::const_iterator _current;
 	std::string::const_iterator _end;
+	//uint32_t _expect;
 };

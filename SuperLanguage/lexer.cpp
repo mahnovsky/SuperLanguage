@@ -5,6 +5,7 @@
 #include <charconv>
 #include <format>
 
+
 Token::Token(TokType t, ObjectPtr v)
 	: type(t)
 	, object(std::move(v))
@@ -14,22 +15,22 @@ std::optional<TokType> Lexer::match_op(char ch)
 {
 	switch(ch)
 	{
-	case '+': return TokType::Plus;
-	case '-': return TokType::Minus;
-	case '*': return TokType::Mul;
-	case '/': return TokType::Div;
+	case '+': return TT_Plus;
+	case '-': return TT_Minus;
+	case '*': return TT_Mul;
+	case '/': return TT_Div;
 	default: return {};
 	}
 }
 
-std::string_view Lexer::read_word()
+std::string_view Lexer::read_word() const
 {
 	std::string::const_iterator it = _current;
-	while(_current != _end)
+	while(it != _end)
 	{
-		if(isalpha(*_current) > 0)
+		if(isalpha(*it) > 0)
 		{
-			++_current;
+			++it;
 		}
 		else
 		{
@@ -37,55 +38,47 @@ std::string_view Lexer::read_word()
 		}
 	}
 
-	return std::string_view{it, _current};
+	return std::string_view{_current, it };
 }
 
-ObjectPtr Lexer::read_number()
+std::string_view Lexer::read_number() const
 {
 	std::string::const_iterator it = _current;
-	bool is_point = false;
-	while (_current != _end)
+	while (it != _end)
 	{
-		if((*_current) == '.' && it != _current)
-		{
-			is_point = true;
-			++_current;
-		}
-		else if (isdigit(*_current))
-		{
-			++_current;
-		}
-		else if(it != _current)
-		{
-			std::string_view number{it, _current};
-			if (!is_point)
-			{
-				int value = 0;
-				auto [ptr, ec] = std::from_chars(number.data(), 
-					number.data() + number.size(), value);
-				if (ec == std::errc())
-				{
-					return std::make_shared<Integer>(value);
-				}
-			}
-			else
-			{
-				float value = 0;
-				auto [ptr, ec] = std::from_chars(number.data(),
-					number.data() + number.size(), value);
-				if (ec == std::errc())
-				{
-					return std::make_shared<Float>(value);
-				}
-			}
-		}
-		else
+		if (isdigit(*it) == 0 && (*it) != '.')
 		{
 			break;
 		}
+		++it;
 	}
 
-	return 0;
+	return { _current, it };
+}
+ObjectPtr convert(const std::string_view& number)
+{
+	if (number.find_first_of('.') == std::string_view::npos)
+	{
+		int value = 0;
+		auto [ptr, ec] = std::from_chars(number.data(),
+			number.data() + number.size(), value);
+		if (ec == std::errc())
+		{
+			return std::make_shared<Integer>(value);
+		}
+	}
+	else
+	{
+		float value = 0;
+		auto [ptr, ec] = std::from_chars(number.data(),
+			number.data() + number.size(), value);
+		if (ec == std::errc())
+		{
+			return std::make_shared<Float>(value);
+		}
+	}
+
+	return {};
 }
 
 std::vector<Token> Lexer::tokenize(const std::string& expression)
@@ -110,172 +103,155 @@ std::vector<Token> Lexer::tokenize(const std::string& expression)
 
 void Lexer::process_line()
 {
-	eat_until_not('\t');
-
-	const auto word = read_word();
-	uint32_t expect = TOK_INT(Let) | TOK_INT(Assign);
-	if(word == "let")
+	while (_current != _end)
 	{
-		eat_until_not(' ', true);
-		put_declaration();
-
-		expect = TOK_INT(Assign);
-	}
-	else if(!word.empty())
-	{
-		eat_until_not(' ');
-		if((*_current) == '(')
+		const char ch = *_current;
+		if(ch == ' ' || ch == '\t')
 		{
-			eat('(');
-			eat(')');
-			put_id(std::string{word});
-
-			expect = TOK_INT(Semicolon);
+			++_current;
 		}
 		else
 		{
-			eat('=');
-			put_assign(std::string{word});
-
-			expect = TOK_INT(Id) | TOK_INT(NumberLiteral) | TOK_INT(LParen);
+			break;
 		}
 	}
 
-	std::vector<bool> paren_stack;
+	uint32_t expect = TT_Let | TT_Id | TT_ScopeBegin | TT_ScopeEnd;
  	while (_current != _end)
 	{
-		if ((*_current) == '{' || (*_current) == '}')
-		{
-			_tokens.emplace_back((*_current) == '{' ? TokType::ScopeBegin : TokType::ScopeEnd);
-			eat(*_current);
-			expect = TOK_INT(Let) | TOK_INT(Assign);
-			continue;
-		}
+		eat_until_not(' ');
 
-		if ((expect & TOK_INT(LParen)) && (*_current) == '(')
+		if((*_current) == '\n')
 		{
-			paren_stack.push_back(true);
-			put_lparen();
-			eat('(');
-			expect = TOK_INT(Id) | TOK_INT(NumberLiteral) | TOK_INT(LParen);
-		}
-		else if ((expect & TOK_INT(RParen)) && (*_current) == ')')
-		{
-			if(paren_stack.empty())
-			{
-				fatal_error("Meet unexpected token \')\'");
-			}
-			paren_stack.pop_back();
-			put_rparen();
-			eat(')');
-			expect = TOK_INT(Operation) | TOK_INT(Semicolon) | TOK_INT(RParen);
-		}
-		else if((expect & TOK_INT(Assign)) && isalpha(*_current) > 0)
-		{
-			put_assign(std::string{read_word()});
-			eat_until_not(' ');
-			eat('=');
-			expect = TOK_INT(Id) | TOK_INT(NumberLiteral) | TOK_INT(LParen);
-		}
-		else if ((expect & TOK_INT(Id)) && isalpha(*_current) > 0)
-		{
-			put_id(std::string{ read_word() });
-			expect = TOK_INT(Operation) | TOK_INT(Semicolon);
-		}
-		else if((expect & TOK_INT(NumberLiteral)) && isdigit(*_current) > 0)
-		{
-			put_number_literal(read_number());
-			expect = TOK_INT(Operation) | TOK_INT(Semicolon);
-		}
-		else if((expect & TOK_INT(Semicolon)) && (*_current) == ';')
-		{
-			put_semicolon();
-			eat(';');
 			break;
 		}
-		else if((expect & TOK_INT(Operation)) && match_op(*_current).has_value())
+
+		if ((expect & TT_Semicolon) && try_put_token(TT_Semicolon, ';'))
 		{
-			put_operation(*_current);
-			eat(*_current);
-			expect = TOK_INT(Id) | TOK_INT(NumberLiteral) | TOK_INT(LParen);
+			break;
+		}
+
+		if ((expect & TT_ScopeBegin) && try_put_token(TT_ScopeBegin, '{'))
+		{
+			expect = TT_Let | TT_Id | TT_ScopeBegin | TT_ScopeEnd;
+		}
+		else if ((expect & TT_ScopeEnd) && try_put_token(TT_ScopeEnd, '}'))
+		{
+			expect = TT_Let | TT_Id | TT_ScopeBegin;
+		}
+		else if ((expect & TT_LParen) && try_put_token(TT_LParen, '('))
+		{
+			expect = TT_Id | TT_NumberLiteral | TT_LParen | TT_RParen;
+		}
+		else if ((expect & TT_RParen) && try_put_token(TT_RParen, ')'))
+		{
+			expect = TT_Operation | TT_Semicolon | TT_RParen | TT_ScopeBegin;
+		}
+		else if ((expect & TT_Assign) && try_put_token(TT_Assign, '='))
+		{
+			expect = TT_Id | TT_NumberLiteral | TT_LParen | TT_Fn;
+		}
+		else if ((expect & TT_Let) && try_put_token(TT_Let, "let"))
+		{
+			expect = TT_Id;
+		}
+		else if((expect & TT_Fn) && try_put_token(TT_Fn, "fn"))
+		{
+			expect = TT_LParen;
+		}
+		else if ((expect & TT_NumberLiteral) && try_put_number_literal())
+		{
+			expect = TT_Operation | TT_Semicolon | TT_RParen;
+		}
+		else if ((expect & TT_Operation) && try_put_operation())
+		{
+			expect = TT_Id | TT_NumberLiteral | TT_LParen;
+		}
+		else if ((expect & TT_Id) && try_put_id())
+		{
+			expect = TT_Assign | TT_Operation | TT_Semicolon | TT_LParen;
 		}
 		else if((*_current) != ' ' && (*_current) != '\n')
 		{
 			auto err_msg = std::format("Unexpected token type {}", *_current);
 			fatal_error(err_msg);
 		}
+	}
 
-		if (!_tokens.empty() && !paren_stack.empty())
+	eat_until_not('\r');
+	eat_until_not('\n');
+
+	if (_current != _end)
+	{
+		fatal_error("Unexpected characters after semicolon");
+	}
+}
+
+bool Lexer::try_put_token(TokType tok, char ch)
+{
+	if ((*_current) == ch)
+	{
+		eat_current();
+		_tokens.emplace_back(tok);
+		return true;
+	}
+	return false;
+}
+
+bool Lexer::try_put_token(TokType tok, const std::string_view& match_word)
+{
+	if (isalpha(*_current) > 0)
+	{
+		const auto word = read_word();
+
+		if (word == match_word)
 		{
-			const auto type = _tokens.back().type;
-			if (type == TokType::Id || 
-				type == TokType::NumberLiteral)
-			{
-				expect |= TOK_INT(RParen);
-			}
+			eat(word);
+			_tokens.emplace_back(tok);
+
+			return true;
 		}
-
-		eat_until_not(' ');
-		eat_until_not('\n');
 	}
+	return false;
+}
 
-	if(!paren_stack.empty())
+bool Lexer::try_put_number_literal()
+{
+	if(isdigit(*_current) > 0)
 	{
-		fatal_error("No closed paren");
+		const auto number = read_number();
+		eat(number);
+		_tokens.emplace_back(TT_NumberLiteral, convert(number));
+		
+		return true;
 	}
+	return false;
 }
 
-void Lexer::put_number_literal(ObjectPtr number)
+bool Lexer::try_put_operation()
 {
-	_tokens.emplace_back(TokType::NumberLiteral, std::move(number));
-}
-
-void Lexer::put_operation(char op)
-{
-	if (auto tokOp = match_op(op); tokOp)
+	if(auto op = match_op(*_current))
 	{
-		_tokens.emplace_back(tokOp.value());
+		_tokens.emplace_back(op.value());
+		eat_current();
+		return true;
 	}
+
+	return false;
 }
 
-void Lexer::put_declaration()
+bool Lexer::try_put_id()
 {
-	_tokens.emplace_back(TokType::Let);
-}
+	if(isalpha(*_current) > 0)
+	{
+		const auto word = read_word();
+		eat(word);
+		_tokens.emplace_back(TT_Id, std::string{word});
+		
+		return true;
+	}
 
-void Lexer::put_semicolon()
-{
-	_tokens.emplace_back(TokType::Semicolon);
-}
-
-void Lexer::put_assign(std::string&& name)
-{
-	_tokens.emplace_back(TokType::Assign, std::move(name));
-}
-
-void Lexer::put_id(std::string&& name)
-{
-	_tokens.emplace_back(TokType::Id, std::move(name));
-}
-
-void Lexer::put_lparen()
-{
-	_tokens.emplace_back(TokType::LParen);
-}
-
-void Lexer::put_rparen()
-{
-	_tokens.emplace_back(TokType::RParen);
-}
-
-void Lexer::put_scope_begin()
-{
-	_tokens.emplace_back(TokType::ScopeBegin);
-}
-
-void Lexer::put_scope_end()
-{
-	_tokens.emplace_back(TokType::ScopeEnd);
+	return false;
 }
 
 void Lexer::eat(char ch)
@@ -290,6 +266,11 @@ void Lexer::eat(char ch)
 	}
 }
 
+void Lexer::eat_current()
+{
+	eat(*_current);
+}
+
 void Lexer::eat_until_not(char ch, bool expect_once)
 {
 	if (expect_once)
@@ -299,6 +280,14 @@ void Lexer::eat_until_not(char ch, bool expect_once)
 	while (_current != _end && (*_current) == ch)
 	{
 		++_current;
+	}
+}
+
+void Lexer::eat(const std::string_view& word)
+{
+	for(auto& ch : word)
+	{
+		eat(ch);
 	}
 }
 
