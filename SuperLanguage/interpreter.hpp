@@ -24,6 +24,10 @@ private:
 
 	void visit(Assign* node) override;
 
+	void visit(StringLiteral* node) override;
+
+	void visit(Function* node) override;
+
 	void visit(Call* node) override;
 
 	void eval_plus();
@@ -54,5 +58,6 @@ private:
 private:
 	Node* _root_scope;
 	Scope* _current_scope;
+	std::map<std::string, Function*> _functions;
 	std::vector<ObjectPtr> _stack;
 };

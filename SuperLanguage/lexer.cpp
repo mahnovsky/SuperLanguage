@@ -55,6 +55,25 @@ std::string_view Lexer::read_number() const
 
 	return { _current, it };
 }
+
+std::string::const_iterator Lexer::read_until(char end_ch) const
+{
+	std::string::const_iterator it = _current;
+	bool end_found = false;
+	while (it != _end)
+	{
+		end_found = (*it) == end_ch;
+		if (end_found)
+		{
+			break;
+		}
+
+		++it;
+	}
+
+	return end_found ? it : _current;
+}
+
 ObjectPtr convert(const std::string_view& number)
 {
 	if (number.find_first_of('.') == std::string_view::npos)
@@ -141,15 +160,19 @@ void Lexer::process_line()
 		}
 		else if ((expect & TT_LParen) && try_put_token(TT_LParen, '('))
 		{
-			expect = TT_Id | TT_NumberLiteral | TT_LParen | TT_RParen;
+			expect = TT_Id | TT_NumberLiteral | TT_StringLiteral | TT_LParen | TT_RParen;
 		}
 		else if ((expect & TT_RParen) && try_put_token(TT_RParen, ')'))
 		{
 			expect = TT_Operation | TT_Semicolon | TT_RParen | TT_ScopeBegin;
 		}
+		else if((expect & TT_Coma) && try_put_token(TT_Coma, ','))
+		{
+			expect = TT_Id | TT_NumberLiteral | TT_StringLiteral;
+		}
 		else if ((expect & TT_Assign) && try_put_token(TT_Assign, '='))
 		{
-			expect = TT_Id | TT_NumberLiteral | TT_LParen | TT_Fn;
+			expect = TT_Id | TT_NumberLiteral | TT_LParen | TT_Fn | TT_StringLiteral;
 		}
 		else if ((expect & TT_Let) && try_put_token(TT_Let, "let"))
 		{
@@ -157,19 +180,23 @@ void Lexer::process_line()
 		}
 		else if((expect & TT_Fn) && try_put_token(TT_Fn, "fn"))
 		{
-			expect = TT_LParen;
+			expect = TT_LParen | TT_NumberLiteral | TT_StringLiteral | TT_Id;
 		}
 		else if ((expect & TT_NumberLiteral) && try_put_number_literal())
 		{
-			expect = TT_Operation | TT_Semicolon | TT_RParen;
+			expect = TT_Operation | TT_Semicolon | TT_RParen | TT_Coma;
+		}
+		else if ((expect & TT_StringLiteral) && try_put_string_literal())
+		{
+			expect = TT_Operation | TT_Semicolon | TT_RParen | TT_Coma;
 		}
 		else if ((expect & TT_Operation) && try_put_operation())
 		{
-			expect = TT_Id | TT_NumberLiteral | TT_LParen;
+			expect = TT_Id | TT_NumberLiteral | TT_LParen | TT_StringLiteral;
 		}
 		else if ((expect & TT_Id) && try_put_id())
 		{
-			expect = TT_Assign | TT_Operation | TT_Semicolon | TT_LParen;
+			expect = TT_Assign | TT_Operation | TT_Semicolon | TT_LParen | TT_Coma;
 		}
 		else if((*_current) != ' ' && (*_current) != '\n')
 		{
@@ -224,6 +251,26 @@ bool Lexer::try_put_number_literal()
 		_tokens.emplace_back(TT_NumberLiteral, convert(number));
 		
 		return true;
+	}
+	return false;
+}
+
+bool Lexer::try_put_string_literal()
+{
+	constexpr char quote = '\"';
+	if((*_current) == quote)
+	{
+		eat(quote);
+		const auto end = read_until(quote);
+		if (_current != end)
+		{
+			_tokens.emplace_back(TT_StringLiteral, std::make_shared<String>(std::string{_current, end}));
+
+			_current = end;
+			eat(quote);
+
+			return true;
+		}
 	}
 	return false;
 }

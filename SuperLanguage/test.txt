@@ -1,8 +1,11 @@
+let s = "hello" + " world";
+s = s + " next";
 let x = 12;
 let y = 3 * ((x + 2) * (9 - 10));
-y = 2.5;
+y = 2.5 + 1;
+
 let test = x * y / 9;
-let foo = {
+let foo = fn() {
 	let miha = 15.0 / x;
 	x = miha * y;
 	{

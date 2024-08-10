@@ -70,7 +70,7 @@ class NumberLiteral : public Node
 {
 public:
 	NumberLiteral(ObjectPtr n)
-		:_number(n)
+		:_number(std::move(n))
 	{}
 
 	void accept(NodeVisitor& visitor) override;
@@ -118,6 +118,38 @@ private:
 	bool _declaration;
 };
 
+class StringLiteral : public Node
+{
+public:
+	StringLiteral(ObjectPtr val)
+		:_value(std::move(val))
+	{}
+
+	void accept(NodeVisitor& visitor) override;
+
+	ObjectPtr get_string()
+	{
+		return _value;
+	}
+
+private:
+	ObjectPtr _value;
+};
+
+class Function : public Node
+{
+public:
+	void accept(NodeVisitor& visitor) override;
+
+	const std::string& get_name() const
+	{
+		return _name;
+	}
+
+private:
+	std::string _name;
+};
+
 class Call : public Node
 {
 public:
@@ -146,6 +178,8 @@ public:
 	virtual void visit(NumberLiteral* node) = 0;
 	virtual void visit(Assign* node) = 0;
 	virtual void visit(Variable* node) = 0;
+	virtual void visit(StringLiteral* node) = 0;
+	virtual void visit(Function* node) = 0;
 	virtual void visit(Call* node) = 0;
 };
 

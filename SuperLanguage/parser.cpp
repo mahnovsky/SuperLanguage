@@ -63,13 +63,22 @@ Node* Parser::statement()
 	{
 		eat(TT_Let);
 		std::string var = _current->name;
+		
 		eat(TT_Id);
 		eat(TT_Assign);
+		Assign* res;
 		if(_current->type == TT_Fn)
 		{
-			return new Assign(std::move(var), statement(), true);
+			res = new Assign(std::move(var), statement(), true);
 		}
-		return new Assign(std::move(var), expression(), true);
+		else
+		{
+			res = new Assign(std::move(var), expression(), true);
+		}
+
+		_id_types.emplace(res->get_var_name(), _current_context);
+
+		return res;
 	}
 
 	if(_current->type == TT_Id)
@@ -111,6 +120,26 @@ Node* Parser::statement()
 
 Node* Parser::expression()
 {
+	_current_context = get_expression_context();
+	
+	if(_current_context == TypeContext::String)
+	{
+		return string_expresson();
+	}
+	else if(_current_context == TypeContext::Number)
+	{
+		return number_expression();
+	}
+	else
+	{
+		assert(false);
+	}
+
+	return nullptr;
+}
+
+Node* Parser::number_expression()
+{
 	auto node = term();
 
 	while (_current->type == TT_Plus || _current->type == TT_Minus)
@@ -121,6 +150,34 @@ Node* Parser::expression()
 	}
 
 	return node;
+}
+
+Node* Parser::string_expresson()
+{
+	Node* node = string_factor();
+	while (_current->type == TT_Plus)
+	{
+		eat(TT_Plus);
+		node = new BinaryOperation(node, string_factor(), '+');
+	}
+
+	return node;
+}
+
+Node* Parser::string_factor()
+{
+	if (_current->type == TT_Id)
+	{
+		return create_variable();
+	}
+	if (_current->type == TT_StringLiteral)
+	{
+		ObjectPtr f = _current->object;
+		eat(TT_StringLiteral);
+		return new StringLiteral(f);
+	}
+
+	return nullptr;
 }
 
 Node* Parser::factor()
@@ -134,9 +191,7 @@ Node* Parser::factor()
 	}
 	if(_current->type == TT_Id)
 	{
-		std::string name = _current->name;
-		eat(TT_Id);
-		return new Variable(std::move(name));
+		return create_variable();
 	}
 	if(_current->type == TT_NumberLiteral)
 	{
@@ -160,4 +215,32 @@ Node* Parser::term()
 	}
 
 	return node;
+}
+
+Node* Parser::create_variable()
+{
+	std::string name = _current->name;
+	eat(TT_Id);
+	_id_types.emplace(std::string{name}, _current_context);
+
+	return new Variable(std::move(name));
+}
+
+Parser::TypeContext Parser::get_expression_context() const
+{
+	if(_current->type == TT_NumberLiteral)
+	{
+		return TypeContext::Number;
+	}
+	if (_current->type == TT_StringLiteral)
+	{
+		return TypeContext::String;
+	}
+
+	auto it = _id_types.find(_current->name);
+	if (_current->type == TT_Id && it != _id_types.end())
+	{
+		return it->second;
+	}
+	return _current_context;
 }

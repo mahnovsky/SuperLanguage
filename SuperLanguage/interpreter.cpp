@@ -105,6 +105,20 @@ void Interpreter::visit(Assign* node)
 	_stack.pop_back();
 }
 
+void Interpreter::visit(StringLiteral* node)
+{
+	_stack.emplace_back(node->get_string());
+}
+
+void Interpreter::visit(Function* node)
+{
+	const auto& name = node->get_name();
+	if(_functions.find(name) == _functions.end())
+	{
+		_functions[name] = node;
+	}
+}
+
 void Interpreter::visit(Call* node)
 {
 	if (const auto object = _current_scope->get_variable(node->get_name()))
@@ -153,6 +167,15 @@ void Interpreter::eval_plus()
 		else if (pop_stack(fleft))
 		{
 			_stack.emplace_back(std::make_shared<Float>(fleft + fright));
+		}
+	}
+	else
+	{
+		std::string rvalue;
+		std::string lvalue;
+		if (pop_stack(rvalue) && pop_stack(lvalue))
+		{
+			_stack.emplace_back(std::make_shared<String>(lvalue + rvalue));
 		}
 	}
 }
@@ -252,16 +275,21 @@ void Interpreter::eval_div()
 
 std::string Interpreter::print_stack_value() const
 {
-	const auto number = _stack.back();
+	const auto value = _stack.back();
 	int ival = 0;
 	float fval = 0;
-	if (number->get(&ival))
+	std::string s;
+	if (value->get(&ival))
 	{
 		return std::format("value: {}", ival);
 	}
-	else if (number->get(&fval))
+	else if (value->get(&fval))
 	{
 		return std::format("value: {}", fval);
+	}
+	else if(value->get(&s))
+	{
+		return std::format("value: {}", s);
 	}
 	return {};
 }

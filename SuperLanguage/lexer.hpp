@@ -27,7 +27,11 @@ enum TokType : uint32_t
 	TT_ScopeBegin = 1 << 13,
 	TT_ScopeEnd = 1 << 14,
 
-	TT_Fn = 1 << 15
+	TT_StringLiteral = 1 << 15, 
+
+	TT_Coma = 1 << 16,
+
+	TT_Fn = 1 << 17
 };
 
 using ObjectPtr = std::shared_ptr<Object>;
@@ -64,6 +68,8 @@ private:
 
 	std::string_view read_number() const;
 
+	std::string::const_iterator read_until(char end_ch) const;
+
 	void process_line();
 
 	bool try_put_token(TokType tok, char ch);
@@ -71,6 +77,8 @@ private:
 	bool try_put_token(TokType tok, const std::string_view& match_word);
 
 	bool try_put_number_literal();
+
+	bool try_put_string_literal();
 
 	bool try_put_operation();
 
