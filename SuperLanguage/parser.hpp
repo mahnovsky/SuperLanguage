@@ -29,7 +29,9 @@ private:
 
 	Node* term();
 
-	Node* create_variable();
+	Variable* create_variable();
+
+	Variable* get_variable();
 
 private:
 	enum class TypeContext
@@ -39,6 +41,12 @@ private:
 		String
 	};
 
+	struct VariableInfo
+	{
+		TypeContext context;
+		Variable* variable;
+	};
+
 	TypeContext get_expression_context() const;
 
 	Scope* _current_scope = nullptr;
@@ -46,5 +54,7 @@ private:
 	std::vector<Token>::const_iterator _current;
 	bool _skip_semicolon = false;
 	TypeContext _current_context = TypeContext::None;
-	std::map<std::string, TypeContext> _id_types;
+	std::map<std::string, VariableInfo> _variables;
+	size_t _index_counter = 0;
+	int _scope_level = 0;
 };

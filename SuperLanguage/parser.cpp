@@ -1,6 +1,7 @@
 #include "parser.hpp"
 
 #include <cassert>
+#include <format>
 
 Parser::Parser(std::vector<Token>&& tokens)
 	:_tokens{std::move(tokens)}
@@ -11,7 +12,7 @@ Parser::Parser(std::vector<Token>&& tokens)
 Node* Parser::parse()
 {
 	auto nodes = statementList();
-	return new Scope(std::move(nodes));
+	return new Scope(0, std::move(nodes));
 }
 
 void Parser::eat(TokType tokType)
@@ -61,58 +62,73 @@ Node* Parser::statement()
 
 	if(_current->type == TT_Let)
 	{
-		eat(TT_Let);
-		std::string var = _current->name;
-		
-		eat(TT_Id);
-		eat(TT_Assign);
-		Assign* res;
-		if(_current->type == TT_Fn)
+		if (Variable* var = create_variable())
 		{
-			res = new Assign(std::move(var), statement(), true);
-		}
-		else
-		{
-			res = new Assign(std::move(var), expression(), true);
-		}
+			eat(TT_Assign);
 
-		_id_types.emplace(res->get_var_name(), _current_context);
+			Assign* res;
+			if (_current->type == TT_Fn)
+			{
+				res = new Assign(var->get_stack_index(), statement(), true);
+			}
+			else
+			{
+				res = new Assign(var->get_stack_index(), expression(), true);
+			}
 
-		return res;
+			_variables.emplace(var->get_name(), _current_context);
+
+			return res;
+		}
 	}
 
 	if(_current->type == TT_Id)
 	{
-		std::string var = _current->name;
-		eat(TT_Id);
+		std::string name = _current->name;
+		const auto var = get_variable();
 
-		if(_current->type == TT_LParen)
+		if(!var && _current->type == TT_LParen)
 		{
 			eat(TT_LParen);
 			eat(TT_RParen);
-			return new Call(std::move(var));
+			return new Call(std::move(name));
 		}
 
 		eat(TT_Assign);
-		return new Assign(std::move(var), expression());
+
+		return new Assign(var->get_stack_index(), expression());
 	}
 
 	if(_current->type == TT_ScopeBegin)
 	{
+		const auto base_index = _index_counter;
+		++_scope_level;
 		eat(TT_ScopeBegin);
 		auto nodes = statementList();
 		eat(TT_ScopeEnd);
+		--_scope_level;
 		_skip_semicolon = true;
-		return new Scope(std::move(nodes));
+		_index_counter = base_index;
+		return new Scope(base_index + 1, std::move(nodes));
 	}
 
 	if(_current->type == TT_Fn)
 	{
 		eat(TT_Fn);
+		std::string name;
+		if(_current->type == TT_Id)
+		{
+			name = _current->name;
+			eat(TT_Id);
+		}
+
 		eat(TT_LParen);
+
 		eat(TT_RParen);
 
-		return statement();
+		const auto scope = dynamic_cast<Scope*>(statement());
+
+		return new Function(scope, std::move(name));
 	}
 
 	return nullptr;
@@ -168,7 +184,7 @@ Node* Parser::string_factor()
 {
 	if (_current->type == TT_Id)
 	{
-		return create_variable();
+		return get_variable();
 	}
 	if (_current->type == TT_StringLiteral)
 	{
@@ -191,7 +207,7 @@ Node* Parser::factor()
 	}
 	if(_current->type == TT_Id)
 	{
-		return create_variable();
+		return get_variable();
 	}
 	if(_current->type == TT_NumberLiteral)
 	{
@@ -217,13 +233,37 @@ Node* Parser::term()
 	return node;
 }
 
-Node* Parser::create_variable()
+Variable* Parser::create_variable()
+{
+	eat(TT_Let);
+	std::string name = std::format("{}_{}", _scope_level, _current->name);
+	eat(TT_Id);
+	const size_t var_offset = _index_counter++;
+	auto* var = new Variable(std::move(name), var_offset);
+	_variables.emplace(name, VariableInfo{ _current_context, var });
+
+	return var;
+}
+
+Variable* Parser::get_variable()
 {
 	std::string name = _current->name;
 	eat(TT_Id);
-	_id_types.emplace(std::string{name}, _current_context);
 
-	return new Variable(std::move(name));
+	auto scope = _scope_level;
+
+	while (scope >= 0)
+	{
+		auto scope_name = std::format("{}_{}", scope, name);
+
+		if(auto it = _variables.find(scope_name); it != _variables.end())
+		{
+			return it->second.variable;
+		}
+		--scope;
+	}
+
+	return nullptr;
 }
 
 Parser::TypeContext Parser::get_expression_context() const
@@ -237,10 +277,10 @@ Parser::TypeContext Parser::get_expression_context() const
 		return TypeContext::String;
 	}
 
-	auto it = _id_types.find(_current->name);
-	if (_current->type == TT_Id && it != _id_types.end())
+	auto it = _variables.find(_current->name);
+	if (_current->type == TT_Id && it != _variables.end())
 	{
-		return it->second;
+		return it->second.context;
 	}
 	return _current_context;
 }

@@ -53,8 +53,11 @@ private:
 		return false;
 	}
 
-	std::string print_stack_value() const;
+	std::string print_value(ObjectPtr value) const;
 
+	void allocate_stack_variable(size_t index);
+
+	bool set_stack_variable(size_t index, ObjectPtr object);
 private:
 	Node* _root_scope;
 	Scope* _current_scope;

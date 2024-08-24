@@ -22,7 +22,7 @@ void Interpreter::run()
 
 void Interpreter::visit(Scope* node)
 {
-	auto parent_scope = _current_scope;
+	const auto parent_scope = _current_scope;
 	_current_scope = node;
 	auto& nodes = node->get_nodes();
 
@@ -32,6 +32,10 @@ void Interpreter::visit(Scope* node)
 	}
 
 	_current_scope = parent_scope;
+	if (_current_scope)
+	{
+		_stack.resize(_current_scope->get_top_stack());
+	}
 }
 
 void Interpreter::visit(BinaryOperation* node)
@@ -56,9 +60,12 @@ void Interpreter::visit(NumberLiteral* node)
 
 void Interpreter::visit(Variable* node)
 {
-	if(const auto object = _current_scope->get_variable(node->get_name()))
+	const auto top = _current_scope->get_top_stack();
+	const auto index = node->get_stack_index() > top ? _current_scope->get_stack_base() + node->get_stack_index() : node->get_stack_index();
+
+	if(index < _stack.size())
 	{
-		_stack.emplace_back(object);
+		_stack.emplace_back(_stack[index]);
 	}
 	else
 	{
@@ -77,32 +84,31 @@ void Interpreter::visit(Assign* node)
 		node->get_expression()->accept(*this);
 	}
 
+	const auto val = _stack.back();
+	_stack.pop_back();
+
 	if (node->is_declaration())
 	{
-		_current_scope->set_variable(node->get_var_name(), _stack.back(), true);
-		
-		const auto str = std::format("Var {} set to {}", node->get_var_name(), print_stack_value());
+		allocate_stack_variable(node->get_var_index());
+		set_stack_variable(node->get_var_index(), val);
+
+		const auto str = std::format("Var {} set to {}", node->get_var_index(), print_value(val));
 		puts(str.c_str());
 	}
 	else
 	{
-		Scope* src_scope = nullptr;
-		const auto var_name = node->get_var_name();
-		auto it = _current_scope->get_variable(var_name, &src_scope);
-		if (it && src_scope)
+		if (set_stack_variable(node->get_var_index(), val))
 		{
-			src_scope->set_variable(var_name, _stack.back());
-
-			const auto str = std::format("Var {} set to {}", node->get_var_name(), print_stack_value());
+			const auto str = std::format("Var {} set to {}", node->get_var_index(), print_value(val));
 			puts(str.c_str());
 		}
 		else
 		{
-			const auto err = std::format("Failed to assign, variable \'{}\' not exist in current scope", node->get_var_name());
+			const auto err = std::format("Failed to assign, variable \'{}\' not exist in current scope", node->get_var_index());
 			puts(err.c_str());
 		}
 	}
-	_stack.pop_back();
+	
 }
 
 void Interpreter::visit(StringLiteral* node)
@@ -121,22 +127,23 @@ void Interpreter::visit(Function* node)
 
 void Interpreter::visit(Call* node)
 {
-	if (const auto object = _current_scope->get_variable(node->get_name()))
+	const std::string name{node->get_function_name()};
+	if (const auto it = _functions.find(name); it != _functions.end())
 	{
-		Scope* scope = nullptr;
-		if(object->get(&scope) && scope)
-		{
-			scope->set_parent(_current_scope);
-			scope->accept(*this);
-		}
-		else
-		{
-			assert(false);
-		}
+		it->second->run(this, _stack.size());
 	}
 	else
 	{
-		assert(false);
+		const auto index = node->get_var_index();
+
+		if(_stack.size() < index)
+		{
+			Function* func = nullptr;
+			if(_stack[index]->get(&func) && func)
+			{
+				func->run(this, _stack.size());
+			}
+		}
 	}
 }
 
@@ -273,9 +280,8 @@ void Interpreter::eval_div()
 	}
 }
 
-std::string Interpreter::print_stack_value() const
+std::string Interpreter::print_value(ObjectPtr value) const
 {
-	const auto value = _stack.back();
 	int ival = 0;
 	float fval = 0;
 	std::string s;
@@ -292,4 +298,26 @@ std::string Interpreter::print_stack_value() const
 		return std::format("value: {}", s);
 	}
 	return {};
+}
+
+void Interpreter::allocate_stack_variable(size_t index)
+{
+	if(index >= _stack.size())
+	{
+		_stack.resize(index + 1);
+		if(_current_scope)
+		{
+			_current_scope->add_variable();
+		}
+	}
+}
+
+bool Interpreter::set_stack_variable(size_t index, ObjectPtr object)
+{
+	const bool res = _stack.size() > index;
+	if (res)
+	{
+		_stack[index] = object;
+	}
+	return res;
 }

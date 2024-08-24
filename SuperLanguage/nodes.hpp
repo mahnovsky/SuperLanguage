@@ -44,7 +44,7 @@ private:
 class Scope : public Node
 {
 public:
-	Scope(std::vector<Node*>&& nodes);
+	Scope(size_t base_index, std::vector<Node*>&& nodes);
 
 	~Scope() override;
 
@@ -56,12 +56,21 @@ public:
 
 	const std::vector<Node*>& get_nodes() const { return _nodes; }
 
-	ObjectPtr get_variable(const std::string& name, Scope** scope = nullptr);
+	size_t get_stack_base() const { return _base_index; }
 
-	void set_variable(const std::string& name, ObjectPtr var, bool declaration = false);
+	void add_variable();
+
+	size_t get_top_stack() const;
+
+
+	friend class Function;
+private:
+	void set_stack_base(size_t base);
 
 private:
 	Scope* _parent;
+	size_t _base_index = 0;
+	size_t _variable_count = 0;
 	std::vector<Node*> _nodes;
 	std::map<std::string, ObjectPtr> _variables;
 };
@@ -84,36 +93,43 @@ private:
 class Variable : public Node
 {
 public:
-	Variable(std::string&& name)
+	Variable(std::string&& name, size_t offset)
 		:_name(name)
+		,_index(offset)
 	{}
 
 	void accept(NodeVisitor& visitor) override;
 
 	std::string get_name() const { return _name; }
 
+	size_t get_stack_index() const
+	{
+		return _index;
+	}
+
 private:
 	std::string _name;
+	size_t _index;
 };
 
 class Assign : public Node
 {
 public:
-	Assign(std::string&& var, Node* expr, bool declaration = false)
-		:_variable(std::move(var))
+	Assign(size_t var_index, Node* expr, bool declaration = false)
+		:_var_index(var_index)
 		,_expression(expr)
 		,_declaration(declaration)
 	{}
 
 	void accept(NodeVisitor& visitor) override;
 
-	std::string get_var_name() const { return _variable; }
+	size_t get_var_index() const { return _var_index; }
 
 	Node* get_expression() const { return _expression; }
 
 	bool is_declaration() const { return _declaration; }
 private:
-	std::string _variable;
+	size_t _var_index = 0;
 	Node* _expression;
 	bool _declaration;
 };
@@ -139,6 +155,8 @@ private:
 class Function : public Node
 {
 public:
+	Function(Scope* scope, std::string&& name);
+
 	void accept(NodeVisitor& visitor) override;
 
 	const std::string& get_name() const
@@ -146,26 +164,41 @@ public:
 		return _name;
 	}
 
+	int get_params_count() const
+	{
+		return _param_count;
+	}
+
+	void run(NodeVisitor* interp, size_t stack_base);
+
 private:
+	Scope* _scope;
 	std::string _name;
+	int _param_count;
 };
 
 class Call : public Node
 {
 public:
-	Call(std::string&& name)
-		:_name(std::move(name))
+	Call(std::string&& func_name)
+		:_function_name(std::move(func_name))
 	{}
 
 	void accept(NodeVisitor& visitor) override;
 
-	const std::string& get_name() const
+	std::string_view get_function_name() const
 	{
-		return _name;
+		return _function_name;
+	}
+
+	size_t get_var_index() const
+	{
+		return _var_index;
 	}
 
 private:
-	std::string _name;
+	std::string _function_name;
+	size_t _var_index = 0;
 };
 
 class NodeVisitor

@@ -106,7 +106,7 @@ std::vector<Token> Lexer::tokenize(const std::string& expression)
 
 	for (auto& line : lines)
 	{
-		if(line.front() == '\n')
+		if(line.front() == '\n' || line.front() == '#')
 		{
 			continue;
 		}
@@ -125,17 +125,20 @@ void Lexer::process_line()
 	while (_current != _end)
 	{
 		const char ch = *_current;
-		if(ch == ' ' || ch == '\t')
+		if (ch == '#')
 		{
-			++_current;
+			return;
 		}
-		else
+
+		if(ch != ' ' && ch != '\t')
 		{
 			break;
 		}
+		
+		++_current;
 	}
 
-	uint32_t expect = TT_Let | TT_Id | TT_ScopeBegin | TT_ScopeEnd;
+	uint32_t expect = TT_Let | TT_Id | TT_ScopeBegin | TT_ScopeEnd | TT_Fn;
  	while (_current != _end)
 	{
 		eat_until_not(' ');

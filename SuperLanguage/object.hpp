@@ -6,6 +6,7 @@
 
 class Node;
 class Scope;
+class Function;
 
 class Object : public std::enable_shared_from_this<Object>
 {
@@ -16,6 +17,18 @@ public:
 	virtual bool get(bool* val) const { return false; }
 	virtual bool get(std::string* val) const { return false; }
 	virtual bool get(Scope** val) const { return false; }
+	virtual bool get(Function** val) const { return false; }
+
+	template <class T>
+	std::optional<T> get_inner() const
+	{
+		T res;
+		if(get(&res))
+		{
+			return res;
+		}
+		return {};
+	}
 };
 
 class Integer : public Object

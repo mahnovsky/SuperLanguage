@@ -1,5 +1,7 @@
 #include "nodes.hpp"
 
+#include "interpreter.hpp"
+
 void BinaryOperation::accept(NodeVisitor& visitor)
 {
 	visitor.visit(this);
@@ -10,8 +12,9 @@ void NumberLiteral::accept(NodeVisitor& visitor)
 	visitor.visit(this);
 }
 
-Scope::Scope(std::vector<Node*>&& nodes)
+Scope::Scope(size_t base_index, std::vector<Node*>&& nodes)
 	:_parent(nullptr)
+	,_base_index(base_index)
 	,_nodes(std::move(nodes))
 {
 	link_scopes();
@@ -46,39 +49,19 @@ void Scope::accept(NodeVisitor& visitor)
 	visitor.visit(this);
 }
 
-ObjectPtr Scope::get_variable(const std::string& name, Scope** scope)
+void Scope::add_variable()
 {
-	const auto it = _variables.find(name);
-	if (it != _variables.end())
-	{
-		if(scope)
-		{
-			(*scope) = this;
-		}
-		
-		return it->second;
-	}
-	if(_parent)
-	{
-		return _parent->get_variable(name, scope);
-	}
-
-	return {};
+	++_variable_count;
 }
 
-void Scope::set_variable(const std::string& name, ObjectPtr var, bool declaration)
+size_t Scope::get_top_stack() const
 {
-	if(declaration)
-	{
-		_variables[name] = std::move(var);
-		return;
-	}
+	return _base_index + _variable_count;
+}
 
-	auto it = _variables.find(name);
-	if(it != _variables.end())
-	{
-		_variables[name] = std::move(var);
-	}
+void Scope::set_stack_base(size_t base)
+{
+	_base_index = base;
 }
 
 void Assign::accept(NodeVisitor& visitor)
@@ -99,4 +82,26 @@ void Call::accept(NodeVisitor& visitor)
 void StringLiteral::accept(NodeVisitor& visitor)
 {
 	visitor.visit(this);
+}
+
+Function::Function(Scope* scope, std::string&& name)
+	:_scope(scope)
+	,_name(std::move(name))
+{
+	
+}
+
+void Function::accept(NodeVisitor& visitor)
+{
+	visitor.visit(this);
+}
+
+void Function::run(NodeVisitor* interp, size_t stack_base)
+{
+	if(_scope)
+	{
+		_scope->set_stack_base(stack_base);
+
+		interp->visit(_scope);
+	}
 }
