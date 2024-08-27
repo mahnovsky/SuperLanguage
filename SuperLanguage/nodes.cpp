@@ -12,9 +12,8 @@ void NumberLiteral::accept(NodeVisitor& visitor)
 	visitor.visit(this);
 }
 
-Scope::Scope(size_t base_index, std::vector<Node*>&& nodes)
+Scope::Scope(std::vector<Node*>&& nodes)
 	:_parent(nullptr)
-	,_base_index(base_index)
 	,_nodes(std::move(nodes))
 {
 	link_scopes();
@@ -54,9 +53,19 @@ void Scope::add_variable()
 	++_variable_count;
 }
 
-size_t Scope::get_top_stack() const
+size_t Scope::get_variable_count() const
 {
-	return _base_index + _variable_count;
+	return _variable_count;
+}
+
+size_t Scope::apply_index_offset(size_t index) const
+{
+	return _base_index + index;
+}
+
+void Scope::set_variable_count(size_t var_count)
+{
+	_variable_count = var_count;
 }
 
 void Scope::set_stack_base(size_t base)
@@ -84,9 +93,10 @@ void StringLiteral::accept(NodeVisitor& visitor)
 	visitor.visit(this);
 }
 
-Function::Function(Scope* scope, std::string&& name)
+Function::Function(Scope* scope, std::string&& name, int params)
 	:_scope(scope)
 	,_name(std::move(name))
+	,_param_count(params)
 {
 	
 }
@@ -101,7 +111,6 @@ void Function::run(NodeVisitor* interp, size_t stack_base)
 	if(_scope)
 	{
 		_scope->set_stack_base(stack_base);
-
 		interp->visit(_scope);
 	}
 }

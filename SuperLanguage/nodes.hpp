@@ -44,7 +44,7 @@ private:
 class Scope : public Node
 {
 public:
-	Scope(size_t base_index, std::vector<Node*>&& nodes);
+	Scope(std::vector<Node*>&& nodes);
 
 	~Scope() override;
 
@@ -60,9 +60,11 @@ public:
 
 	void add_variable();
 
-	size_t get_top_stack() const;
+	size_t get_variable_count() const;
 
+	size_t apply_index_offset(size_t index) const;
 
+	void set_variable_count(size_t var_count);
 	friend class Function;
 private:
 	void set_stack_base(size_t base);
@@ -70,6 +72,7 @@ private:
 private:
 	Scope* _parent;
 	size_t _base_index = 0;
+	size_t _args_offset = 0;
 	size_t _variable_count = 0;
 	std::vector<Node*> _nodes;
 	std::map<std::string, ObjectPtr> _variables;
@@ -155,7 +158,7 @@ private:
 class Function : public Node
 {
 public:
-	Function(Scope* scope, std::string&& name);
+	Function(Scope* scope, std::string&& name, int params);
 
 	void accept(NodeVisitor& visitor) override;
 
@@ -169,6 +172,8 @@ public:
 		return _param_count;
 	}
 
+	Scope* get_scope() const { return _scope; }
+
 	void run(NodeVisitor* interp, size_t stack_base);
 
 private:
@@ -180,8 +185,9 @@ private:
 class Call : public Node
 {
 public:
-	Call(std::string&& func_name)
-		:_function_name(std::move(func_name))
+	Call(std::vector<Node*>&& args, std::string&& func_name)
+		:_args(std::move(args))
+		,_function_name(std::move(func_name))
 	{}
 
 	void accept(NodeVisitor& visitor) override;
@@ -196,7 +202,13 @@ public:
 		return _var_index;
 	}
 
+	const std::vector<Node*>& get_args() const
+	{
+		return _args;
+	}
+
 private:
+	std::vector<Node*> _args;
 	std::string _function_name;
 	size_t _var_index = 0;
 };

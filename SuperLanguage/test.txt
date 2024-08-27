@@ -1,3 +1,18 @@
+fn print(a, b)
+{
+	let p = "cruel " + a;
+	p = p + " hi";
+
+	let w = b - 12;
+	#p = b - 1;
+}
+
+fn foo(t) 
+{
+	let h = "foo";
+	let y = t + 1;
+}
+
 let s = "hello" + " world";
 s = s + " next";
 let x = 12;
@@ -5,12 +20,13 @@ let y = 3 * ((x + 2) * (9 - 10));
 y = 2.5 + 1;
 
 let test = x * y / 9;
-let foo = fn() {
+{
+	print("hello", 7 + 9);
 	let miha = 15.0 / x;
 	x = miha * y;
 	{
 		miha = 0;
 	}
 }
-foo();
-miha = 1;
+foo(8);
+#miha = 1;

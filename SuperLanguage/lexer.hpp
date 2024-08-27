@@ -94,6 +94,8 @@ private:
 
 	void fatal_error(const std::string& error_msg);
 
+	void fill_last_token();
+
 private:
 	std::vector<Token> _tokens;
 	int _current_line = 0;

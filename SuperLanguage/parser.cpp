@@ -12,7 +12,7 @@ Parser::Parser(std::vector<Token>&& tokens)
 Node* Parser::parse()
 {
 	auto nodes = statementList();
-	return new Scope(0, std::move(nodes));
+	return new Scope(std::move(nodes));
 }
 
 void Parser::eat(TokType tokType)
@@ -62,7 +62,7 @@ Node* Parser::statement()
 
 	if(_current->type == TT_Let)
 	{
-		if (Variable* var = create_variable())
+		if (const Variable* var = create_variable())
 		{
 			eat(TT_Assign);
 
@@ -90,8 +90,17 @@ Node* Parser::statement()
 		if(!var && _current->type == TT_LParen)
 		{
 			eat(TT_LParen);
+			std::vector<Node*> args;
+			while(_current->type != TT_RParen)
+			{
+				args.push_back(expression());
+				if (_current->type != TT_RParen)
+				{
+					eat(TT_Coma);
+				}
+			}
 			eat(TT_RParen);
-			return new Call(std::move(name));
+			return new Call(std::move(args), std::move(name));
 		}
 
 		eat(TT_Assign);
@@ -109,26 +118,41 @@ Node* Parser::statement()
 		--_scope_level;
 		_skip_semicolon = true;
 		_index_counter = base_index;
-		return new Scope(base_index + 1, std::move(nodes));
+		return new Scope(std::move(nodes));
 	}
 
 	if(_current->type == TT_Fn)
 	{
 		eat(TT_Fn);
-		std::string name;
 		if(_current->type == TT_Id)
 		{
-			name = _current->name;
+			_current_func = _current->name;
 			eat(TT_Id);
 		}
 
 		eat(TT_LParen);
+		const auto prev_counter = _index_counter;
+		_index_counter = 0;
+		int param_index = 0;
+		while (_current->type == TT_Id)
+		{
+			const std::string param_name = std::format("param_{}_{}", _current_func, _current->name);
+			auto* var = new Variable(std::string{param_name}, param_index);
+			_variables.emplace(param_name, VariableInfo{ TypeContext::None, var });
+			++_index_counter;
+			eat(TT_Id);
+			if (_current->type != TT_RParen)
+			{
+				eat(TT_Coma);
+			}
 
+			++param_index;
+		}
 		eat(TT_RParen);
-
+		
 		const auto scope = dynamic_cast<Scope*>(statement());
-
-		return new Function(scope, std::move(name));
+		_index_counter = prev_counter;
+		return new Function(scope, std::move(_current_func), param_index);
 	}
 
 	return nullptr;
@@ -140,7 +164,7 @@ Node* Parser::expression()
 	
 	if(_current_context == TypeContext::String)
 	{
-		return string_expresson();
+		return string_expression();
 	}
 	else if(_current_context == TypeContext::Number)
 	{
@@ -168,7 +192,7 @@ Node* Parser::number_expression()
 	return node;
 }
 
-Node* Parser::string_expresson()
+Node* Parser::string_expression()
 {
 	Node* node = string_factor();
 	while (_current->type == TT_Plus)
@@ -236,11 +260,14 @@ Node* Parser::term()
 Variable* Parser::create_variable()
 {
 	eat(TT_Let);
-	std::string name = std::format("{}_{}", _scope_level, _current->name);
+
+	std::string name = _current_func.empty() ?
+		std::format("{}_{}", _scope_level, _current->name) :
+		std::format("{}_{}", _current_func, _current->name);
 	eat(TT_Id);
 	const size_t var_offset = _index_counter++;
 	auto* var = new Variable(std::move(name), var_offset);
-	_variables.emplace(name, VariableInfo{ _current_context, var });
+	_variables.emplace(name, VariableInfo{ get_expression_context(), var });
 
 	return var;
 }
@@ -250,15 +277,40 @@ Variable* Parser::get_variable()
 	std::string name = _current->name;
 	eat(TT_Id);
 
+	auto find_var = [this](const std::string& name) -> Variable*
+	{
+		if (const auto it = _variables.find(name); it != _variables.end())
+		{
+			return it->second.variable;
+		}
+		return nullptr;
+	};
+
+	if(!_current_func.empty())
+	{
+		const auto param_name = std::format("param_{}_{}", _current_func, name);
+
+		if(const auto var = find_var(param_name))
+		{
+			return var;
+		}
+
+		const auto var_name = std::format("{}_{}", _current_func, name);
+		if (const auto var = find_var(var_name))
+		{
+			return var;
+		}
+	}
+
 	auto scope = _scope_level;
 
 	while (scope >= 0)
 	{
 		auto scope_name = std::format("{}_{}", scope, name);
 
-		if(auto it = _variables.find(scope_name); it != _variables.end())
+		if (const auto var = find_var(scope_name))
 		{
-			return it->second.variable;
+			return var;
 		}
 		--scope;
 	}
@@ -266,21 +318,78 @@ Variable* Parser::get_variable()
 	return nullptr;
 }
 
-Parser::TypeContext Parser::get_expression_context() const
+Parser::TypeContext Parser::get_variable_context(const std::string& name) const
 {
-	if(_current->type == TT_NumberLiteral)
+	if(_variables.empty())
 	{
-		return TypeContext::Number;
-	}
-	if (_current->type == TT_StringLiteral)
-	{
-		return TypeContext::String;
+		return TypeContext::None;
 	}
 
-	auto it = _variables.find(_current->name);
-	if (_current->type == TT_Id && it != _variables.end())
+	auto find_var = [this](const std::string& name)
 	{
-		return it->second.context;
+		if (const auto it = _variables.find(name); it != _variables.end())
+		{
+			return it->second.context;
+		}
+		return TypeContext::None;
+	};
+
+	if (!_current_func.empty())
+	{
+		const auto param_name = std::format("param_{}_{}", _current_func, name);
+
+		if (const auto context = find_var(param_name); context != TypeContext::None)
+		{
+			return context;
+		}
+
+		const auto var_name = std::format("{}_{}", _current_func, name);
+		if (const auto context = find_var(param_name); context != TypeContext::None)
+		{
+			return context;
+		}
 	}
-	return _current_context;
+	else
+	{
+		auto scope = _scope_level;
+
+		while (scope >= 0)
+		{
+			auto scope_name = std::format("{}_{}", scope, name);
+
+			if (const auto context = find_var(scope_name); context != TypeContext::None)
+			{
+				return context;
+			}
+			--scope;
+		}
+	}
+	return TypeContext::None;
+}
+
+Parser::TypeContext Parser::get_expression_context() const
+{
+	auto it = _current;
+	while (it != _tokens.end() && it->type != TT_Semicolon)
+	{
+		if(it->type == TT_NumberLiteral)
+		{
+			return TypeContext::Number;
+		}
+
+		if (it->type == TT_StringLiteral)
+		{
+			return TypeContext::String;
+		}
+		if (it->type == TT_Id)
+		{
+			const auto res = get_variable_context(it->name);
+			if (res != TypeContext::None)
+			{
+				return res;
+			}
+		}
+		++it;
+	}
+	return TypeContext::None;
 }

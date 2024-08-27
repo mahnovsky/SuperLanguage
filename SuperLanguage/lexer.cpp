@@ -147,7 +147,7 @@ void Lexer::process_line()
 		{
 			break;
 		}
-
+		const auto prev_size = _tokens.size();
 		if ((expect & TT_Semicolon) && try_put_token(TT_Semicolon, ';'))
 		{
 			break;
@@ -199,12 +199,17 @@ void Lexer::process_line()
 		}
 		else if ((expect & TT_Id) && try_put_id())
 		{
-			expect = TT_Assign | TT_Operation | TT_Semicolon | TT_LParen | TT_Coma;
+			expect = TT_Assign | TT_Operation | TT_Semicolon | TT_LParen | TT_Coma | TT_RParen;
 		}
 		else if((*_current) != ' ' && (*_current) != '\n')
 		{
 			auto err_msg = std::format("Unexpected token type {}", *_current);
 			fatal_error(err_msg);
+		}
+
+		if(_tokens.size() > prev_size)
+		{
+			fill_last_token();
 		}
 	}
 
@@ -347,4 +352,13 @@ void Lexer::fatal_error(const std::string& error_msg)
 	auto msg = std::format("{}:{} > {}", _current_line, offset, error_msg);
 	puts(msg.c_str());
 	exit(1);
+}
+
+void Lexer::fill_last_token()
+{
+	if (!_tokens.empty())
+	{
+		_tokens.back().line = _current_line;
+		_tokens.back().pos = _current - _begin;
+	}
 }

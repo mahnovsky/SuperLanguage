@@ -6,6 +6,13 @@
 class Parser
 {
 public:
+	enum class TypeContext
+	{
+		None,
+		Number,
+		String
+	};
+
 	Parser(std::vector<Token>&& tokens);
 
 	Node* parse();
@@ -21,7 +28,7 @@ private:
 
 	Node* number_expression();
 
-	Node* string_expresson();
+	Node* string_expression();
 
 	Node* string_factor();
 
@@ -33,13 +40,10 @@ private:
 
 	Variable* get_variable();
 
+	TypeContext get_variable_context(const std::string& name) const;
+
 private:
-	enum class TypeContext
-	{
-		None,
-		Number,
-		String
-	};
+	
 
 	struct VariableInfo
 	{
@@ -57,4 +61,5 @@ private:
 	std::map<std::string, VariableInfo> _variables;
 	size_t _index_counter = 0;
 	int _scope_level = 0;
+	std::string _current_func;
 };

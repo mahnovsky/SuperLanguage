@@ -3,11 +3,12 @@
 #include "nodes.hpp"
 #include <format>
 
-class Interpreter :public NodeVisitor
+class Interpreter final : public NodeVisitor
 {
 public:
 	Interpreter(Node* scope);
-
+	Interpreter(const Interpreter&) = delete;
+	Interpreter(Interpreter&&) = delete;
 	~Interpreter() override;
 
 	void run();
@@ -58,6 +59,8 @@ private:
 	void allocate_stack_variable(size_t index);
 
 	bool set_stack_variable(size_t index, ObjectPtr object);
+
+	Function* get_function(Call* node);
 private:
 	Node* _root_scope;
 	Scope* _current_scope;
