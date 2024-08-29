@@ -20,6 +20,26 @@ void Interpreter::run()
 	}
 }
 
+ObjectPtr Interpreter::get_stack_variable(size_t index) const
+{
+	if(index < _stack.size())
+	{
+		return _stack[index];
+	}
+
+	return {};
+}
+
+size_t Interpreter::get_stack_size() const
+{
+	return _stack.size();
+}
+
+void Interpreter::add_internal_function(InternalFunction* func)
+{
+	_functions[func->get_name()] = func;
+}
+
 void Interpreter::visit(Scope* node)
 {
 	const auto parent_scope = _current_scope;
@@ -116,6 +136,10 @@ void Interpreter::visit(Function* node)
 	}
 }
 
+void Interpreter::visit(InternalFunction* node)
+{
+}
+
 void Interpreter::visit(Call* node)
 {
 	if(const auto func = get_function(node))
@@ -123,25 +147,18 @@ void Interpreter::visit(Call* node)
 		const auto str = std::format("Call function {}", func->get_name());
 		puts(str.c_str());
 		const auto base_index = _stack.size();
-		const auto prev_scope = _current_scope;
-		_current_scope = func->get_scope();
+		const auto fn_scope = func->get_scope();
+		fn_scope->reset();
 		const auto& args = node->get_args();
 		puts("Function args begin");
 		for(const auto arg : args)
 		{
 			const auto prev_size = _stack.size();
 			arg->accept(*this);
-			if (_stack.size() > prev_size)
-			{
-				const auto arg_res = _stack.back();
-				_stack.pop_back();
-				const auto index = _stack.size();
-				allocate_stack_variable(index);
-				set_stack_variable(index, arg_res);
-			}
+			fn_scope->add_variable();
+			printf("\tArg %llu\n", prev_size);
 		}
 		puts("Function args end");
-		_current_scope = prev_scope;
 
 		func->run(this, base_index);
 

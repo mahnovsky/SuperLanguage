@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <vector>
 #include <string>
 #include <map>
@@ -8,6 +9,7 @@
 #include "lexer.hpp"
 
 class NodeVisitor;
+class Interpreter;
 
 class Node
 {
@@ -48,9 +50,7 @@ public:
 
 	~Scope() override;
 
-	void link_scopes();
-
-	void set_parent(Scope* parent);
+	void reset();
 
 	void accept(NodeVisitor& visitor) override;
 
@@ -65,17 +65,15 @@ public:
 	size_t apply_index_offset(size_t index) const;
 
 	void set_variable_count(size_t var_count);
-	friend class Function;
-private:
+
+	std::vector<size_t> get_variables() const;
+
 	void set_stack_base(size_t base);
 
 private:
-	Scope* _parent;
 	size_t _base_index = 0;
-	size_t _args_offset = 0;
 	size_t _variable_count = 0;
 	std::vector<Node*> _nodes;
-	std::map<std::string, ObjectPtr> _variables;
 };
 
 class NumberLiteral : public Node
@@ -174,12 +172,26 @@ public:
 
 	Scope* get_scope() const { return _scope; }
 
-	void run(NodeVisitor* interp, size_t stack_base);
+	virtual void run(Interpreter* interp, size_t stack_base);
 
 private:
 	Scope* _scope;
 	std::string _name;
 	int _param_count;
+};
+
+class InternalFunction : public Function
+{
+public:
+	using Func = std::function<void(Interpreter*, Scope*)>;
+
+	InternalFunction(std::string&& name, Func f);
+
+	void run(Interpreter* interp, size_t stack_base) override;
+
+	void accept(NodeVisitor& visitor) override;
+private:
+	Func _func;
 };
 
 class Call : public Node
@@ -225,6 +237,7 @@ public:
 	virtual void visit(Variable* node) = 0;
 	virtual void visit(StringLiteral* node) = 0;
 	virtual void visit(Function* node) = 0;
+	virtual void visit(InternalFunction* node) = 0;
 	virtual void visit(Call* node) = 0;
 };
 

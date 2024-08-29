@@ -13,6 +13,12 @@ public:
 
 	void run();
 
+	ObjectPtr get_stack_variable(size_t index) const;
+
+	size_t get_stack_size() const;
+
+	void add_internal_function(InternalFunction* func);
+
 private:
 
 	void visit(Scope* node) override;
@@ -28,6 +34,8 @@ private:
 	void visit(StringLiteral* node) override;
 
 	void visit(Function* node) override;
+
+	void visit(InternalFunction* node) override;
 
 	void visit(Call* node) override;
 

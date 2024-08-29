@@ -13,10 +13,8 @@ void NumberLiteral::accept(NodeVisitor& visitor)
 }
 
 Scope::Scope(std::vector<Node*>&& nodes)
-	:_parent(nullptr)
-	,_nodes(std::move(nodes))
+	:_nodes(std::move(nodes))
 {
-	link_scopes();
 }
 
 Scope::~Scope()
@@ -27,20 +25,10 @@ Scope::~Scope()
 	}
 }
 
-void Scope::link_scopes()
+void Scope::reset()
 {
-	for(auto node : _nodes)
-	{
-		if(auto child = dynamic_cast<Scope*>(node))
-		{
-			child->set_parent(this);
-		}
-	}
-}
-
-void Scope::set_parent(Scope* parent)
-{
-	_parent = parent;
+	_base_index = 0;
+	_variable_count = 0;
 }
 
 void Scope::accept(NodeVisitor& visitor)
@@ -66,6 +54,18 @@ size_t Scope::apply_index_offset(size_t index) const
 void Scope::set_variable_count(size_t var_count)
 {
 	_variable_count = var_count;
+}
+
+std::vector<size_t> Scope::get_variables() const
+{
+	std::vector<size_t> res;
+	auto from = _base_index;
+	const auto end = _base_index + _variable_count;
+	while(from < end)
+	{
+		res.push_back(from++);
+	}
+	return res;
 }
 
 void Scope::set_stack_base(size_t base)
@@ -106,11 +106,35 @@ void Function::accept(NodeVisitor& visitor)
 	visitor.visit(this);
 }
 
-void Function::run(NodeVisitor* interp, size_t stack_base)
+void Function::run(Interpreter* interp, size_t stack_base)
 {
 	if(_scope)
 	{
 		_scope->set_stack_base(stack_base);
-		interp->visit(_scope);
+		NodeVisitor* visitor = interp;
+		visitor->visit(_scope);
 	}
+}
+
+InternalFunction::InternalFunction(std::string&& name, Func f)
+	:Function(new Scope({}), std::move(name), 0)
+	,_func(std::move(f))
+{
+}
+
+void InternalFunction::run(Interpreter* interp, size_t stack_base)
+{
+	if(auto scope = get_scope())
+	{
+		scope->set_stack_base(stack_base);
+	}
+	if(_func)
+	{
+		_func(interp, get_scope());
+	}
+}
+
+void InternalFunction::accept(NodeVisitor& visitor)
+{
+	visitor.visit(this);
 }

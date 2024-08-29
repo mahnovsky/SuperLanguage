@@ -185,6 +185,10 @@ void Lexer::process_line()
 		{
 			expect = TT_LParen | TT_NumberLiteral | TT_StringLiteral | TT_Id;
 		}
+		else if((expect & TT_Res) && try_put_token(TT_Res, "return"))
+		{
+			expect = TT_LParen | TT_NumberLiteral | TT_StringLiteral | TT_Id;
+		}
 		else if ((expect & TT_NumberLiteral) && try_put_number_literal())
 		{
 			expect = TT_Operation | TT_Semicolon | TT_RParen | TT_Coma;

@@ -172,6 +172,10 @@ Node* Parser::expression()
 	}
 	else
 	{
+		if(_current->type == TT_Id)
+		{
+			return get_variable();
+		}
 		assert(false);
 	}
 
