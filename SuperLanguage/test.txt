@@ -5,17 +5,22 @@ fn print(a, b)
 
 	#p = b - 1;
 
-	prints(b, p);
+	prints(b, " ", p);
+
+	return b + 5;
 }
 
-fn foo(t) 
+fn foo(t)
 {
 	let h = "foo";
-	let y = t + 1;
+	let y = t * 3;
 
 	prints(h);
-}
 
+	return y;
+}
+let res = foo(11);
+prints("foo res: ", res);
 let s = "hello" + " world";
 prints(s);
 s = s + " 1134";
@@ -25,12 +30,13 @@ y = 2.5 + 1;
 
 let test = x * y / 9;
 {
-	print(s, ">miha< ");
+	let g = print(s, x);
+	prints("print res: ", g);
 	let miha = 15.0 / x;
 	x = miha * y;
 	{
 		miha = 0;
 	}
 }
-foo(8);
+
 let miha = 1;

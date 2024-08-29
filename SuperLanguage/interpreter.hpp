@@ -39,6 +39,8 @@ private:
 
 	void visit(Call* node) override;
 
+	void visit(Return* node) override;
+
 	void eval_plus();
 
 	void eval_minus();
@@ -74,4 +76,5 @@ private:
 	Scope* _current_scope;
 	std::map<std::string, Function*> _functions;
 	std::vector<ObjectPtr> _stack;
+	ObjectPtr _return_value;
 };

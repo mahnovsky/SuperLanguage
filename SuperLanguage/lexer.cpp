@@ -138,7 +138,7 @@ void Lexer::process_line()
 		++_current;
 	}
 
-	uint32_t expect = TT_Let | TT_Id | TT_ScopeBegin | TT_ScopeEnd | TT_Fn;
+	uint32_t expect = TT_Let | TT_Id | TT_ScopeBegin | TT_ScopeEnd | TT_Fn | TT_Ret;
  	while (_current != _end)
 	{
 		eat_until_not(' ');
@@ -183,9 +183,9 @@ void Lexer::process_line()
 		}
 		else if((expect & TT_Fn) && try_put_token(TT_Fn, "fn"))
 		{
-			expect = TT_LParen | TT_NumberLiteral | TT_StringLiteral | TT_Id;
+			expect = TT_LParen | TT_NumberLiteral | TT_StringLiteral | TT_Id | TT_Ret;
 		}
-		else if((expect & TT_Res) && try_put_token(TT_Res, "return"))
+		else if((expect & TT_Ret) && try_put_token(TT_Ret, "return"))
 		{
 			expect = TT_LParen | TT_NumberLiteral | TT_StringLiteral | TT_Id;
 		}

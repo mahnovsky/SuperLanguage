@@ -84,23 +84,12 @@ Node* Parser::statement()
 
 	if(_current->type == TT_Id)
 	{
-		std::string name = _current->name;
-		const auto var = get_variable();
+		auto node = resolve_id();
 
-		if(!var && _current->type == TT_LParen)
+		const auto var = dynamic_cast<Variable*>(node);
+		if(!var)
 		{
-			eat(TT_LParen);
-			std::vector<Node*> args;
-			while(_current->type != TT_RParen)
-			{
-				args.push_back(expression());
-				if (_current->type != TT_RParen)
-				{
-					eat(TT_Coma);
-				}
-			}
-			eat(TT_RParen);
-			return new Call(std::move(args), std::move(name));
+			return node;
 		}
 
 		eat(TT_Assign);
@@ -153,6 +142,12 @@ Node* Parser::statement()
 		const auto scope = dynamic_cast<Scope*>(statement());
 		_index_counter = prev_counter;
 		return new Function(scope, std::move(_current_func), param_index);
+	}
+
+	if(_current->type == TT_Ret)
+	{
+		eat(TT_Ret);
+		return new Return(expression());
 	}
 
 	return nullptr;
@@ -212,7 +207,7 @@ Node* Parser::string_factor()
 {
 	if (_current->type == TT_Id)
 	{
-		return get_variable();
+		return resolve_id();
 	}
 	if (_current->type == TT_StringLiteral)
 	{
@@ -235,7 +230,7 @@ Node* Parser::factor()
 	}
 	if(_current->type == TT_Id)
 	{
-		return get_variable();
+		return resolve_id();
 	}
 	if(_current->type == TT_NumberLiteral)
 	{
@@ -369,6 +364,29 @@ Parser::TypeContext Parser::get_variable_context(const std::string& name) const
 		}
 	}
 	return TypeContext::None;
+}
+
+Node* Parser::resolve_id()
+{
+	std::string name = _current->name;
+	const auto var = get_variable();
+
+	if (!var && _current->type == TT_LParen)
+	{
+		eat(TT_LParen);
+		std::vector<Node*> args;
+		while (_current->type != TT_RParen)
+		{
+			args.push_back(expression());
+			if (_current->type != TT_RParen)
+			{
+				eat(TT_Coma);
+			}
+		}
+		eat(TT_RParen);
+		return new Call(std::move(args), std::move(name));
+	}
+	return var;
 }
 
 Parser::TypeContext Parser::get_expression_context() const

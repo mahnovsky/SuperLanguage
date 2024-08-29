@@ -1,5 +1,5 @@
 #include "interpreter.hpp"
-
+#include "log.hpp"
 #include <cassert>
 
 Interpreter::Interpreter(Node* scope)
@@ -115,8 +115,7 @@ void Interpreter::visit(Assign* node)
 	{
 		if (!set_stack_variable(node->get_var_index(), val))
 		{
-			const auto err = std::format("Failed to assign, variable \'{}\' not exist in current scope", node->get_var_index());
-			puts(err.c_str());
+			LOG_INFO("Failed to assign, variable \'{}\' not exist in current scope", node->get_var_index());
 		}
 	}
 	
@@ -144,25 +143,48 @@ void Interpreter::visit(Call* node)
 {
 	if(const auto func = get_function(node))
 	{
-		const auto str = std::format("Call function {}", func->get_name());
-		puts(str.c_str());
+		LOG_INFO("Call function {}", func->get_name());
+		
 		const auto base_index = _stack.size();
 		const auto fn_scope = func->get_scope();
 		fn_scope->reset();
 		const auto& args = node->get_args();
-		puts("Function args begin");
+		LOG_INFO("Function args begin");
 		for(const auto arg : args)
 		{
 			const auto prev_size = _stack.size();
 			arg->accept(*this);
 			fn_scope->add_variable();
-			printf("\tArg %llu\n", prev_size);
+			const auto str_val = print_value(_stack.back());
+			LOG_INFO("Arg {} set value to {}", prev_size, str_val);
 		}
-		puts("Function args end");
+		LOG_INFO("Function args end");
 
 		func->run(this, base_index);
 
-		puts("Function call end");
+		if(_return_value)
+		{
+			const auto ret_index = _stack.size();
+			allocate_stack_variable(ret_index);
+			set_stack_variable(ret_index, std::move(_return_value));
+		}
+
+		LOG_INFO("Function call end");
+	}
+}
+
+void Interpreter::visit(Return* node)
+{
+	if(const auto expr = node->get_expression())
+	{
+		const auto prev_size = _stack.size();
+		expr->accept(*this);
+
+		if(_stack.size() > prev_size)
+		{
+			_return_value = _stack.back();
+			_stack.pop_back();
+		}
 	}
 }
 
@@ -328,8 +350,7 @@ void Interpreter::allocate_stack_variable(size_t index)
 		
 		_current_scope->add_variable();
 
-		const auto str = std::format("Allocate on stack {}", index);
-		puts(str.c_str());
+		LOG_INFO("Allocate on stack {}", index);
 	}
 }
 
@@ -341,8 +362,7 @@ bool Interpreter::set_stack_variable(size_t index, ObjectPtr object)
 	{
 		_stack[index] = object;
 
-		const auto str = std::format("Var {} set to {}", index, print_value(object));
-		puts(str.c_str());
+		LOG_INFO("Var {} set to {}", index, print_value(object));
 	}
 	return res;
 }

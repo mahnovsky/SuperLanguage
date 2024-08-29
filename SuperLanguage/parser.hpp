@@ -42,6 +42,8 @@ private:
 
 	TypeContext get_variable_context(const std::string& name) const;
 
+	Node* resolve_id();
+
 private:
 	
 

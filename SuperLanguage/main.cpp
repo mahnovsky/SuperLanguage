@@ -13,7 +13,7 @@ void init_internal_functions(Interpreter* interp)
 {
 	interp->add_internal_function(new InternalFunction("prints", [](Interpreter* interp, Scope* s)
 		{
-			std::string res = "\tOutput> ";
+			std::string res = "--> ";
 			auto vars = s->get_variables();
 			for(auto v : vars)
 			{
@@ -23,18 +23,21 @@ void init_internal_functions(Interpreter* interp)
 				if(obj->get(&str))
 				{
 					res += str;
+					continue;
 				}
 
 				int ival;
 				if(obj->get(&ival))
 				{
 					res += std::to_string(ival);
+					continue;
 				}
 
 				float fval;
 				if (obj->get(&fval))
 				{
 					res += std::to_string(fval);
+					continue;
 				}
 			}
 

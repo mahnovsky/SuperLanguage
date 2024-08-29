@@ -124,7 +124,7 @@ InternalFunction::InternalFunction(std::string&& name, Func f)
 
 void InternalFunction::run(Interpreter* interp, size_t stack_base)
 {
-	if(auto scope = get_scope())
+	if(const auto scope = get_scope())
 	{
 		scope->set_stack_base(stack_base);
 	}
@@ -137,4 +137,19 @@ void InternalFunction::run(Interpreter* interp, size_t stack_base)
 void InternalFunction::accept(NodeVisitor& visitor)
 {
 	visitor.visit(this);
+}
+
+Return::Return(Node* expression)
+	:_expression(expression)
+{
+}
+
+void Return::accept(NodeVisitor& visitor)
+{
+	visitor.visit(this);
+}
+
+Node* Return::get_expression() const
+{
+	return _expression;
 }

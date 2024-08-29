@@ -225,6 +225,20 @@ private:
 	size_t _var_index = 0;
 };
 
+
+class Return : public Node
+{
+public:
+	Return(Node* expression);
+
+	void accept(NodeVisitor& visitor) override;
+
+	Node* get_expression() const;
+
+private:
+	Node* _expression;
+};
+
 class NodeVisitor
 {
 public:
@@ -239,7 +253,8 @@ public:
 	virtual void visit(Function* node) = 0;
 	virtual void visit(InternalFunction* node) = 0;
 	virtual void visit(Call* node) = 0;
-};
+	virtual void visit(Return* node) = 0;
+ };
 
 
 

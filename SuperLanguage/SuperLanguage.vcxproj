@@ -143,6 +143,7 @@
   <ItemGroup>
     <ClCompile Include="interpreter.cpp" />
     <ClCompile Include="lexer.cpp" />
+    <ClCompile Include="log.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="nodes.cpp" />
     <ClCompile Include="object.cpp" />
@@ -152,6 +153,7 @@
   <ItemGroup>
     <ClInclude Include="interpreter.hpp" />
     <ClInclude Include="lexer.hpp" />
+    <ClInclude Include="log.hpp" />
     <ClInclude Include="nodes.hpp" />
     <ClInclude Include="parser.hpp" />
     <ClInclude Include="utils.hpp" />

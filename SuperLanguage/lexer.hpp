@@ -32,7 +32,7 @@ enum TokType : uint32_t
 	TT_Coma = 1 << 16,
 
 	TT_Fn = 1 << 17,
-	TT_Res = 1 << 18
+	TT_Ret = 1 << 18
 };
 
 using ObjectPtr = std::shared_ptr<Object>;
