@@ -32,7 +32,16 @@ enum TokType : uint32_t
 	TT_Coma = 1 << 16,
 
 	TT_Fn = 1 << 17,
-	TT_Ret = 1 << 18
+	TT_Ret = 1 << 18,
+
+	TT_BoolLiteral = 1 << 19,
+	TT_Equal = 1 << 20,
+	TT_Greater = 1 << 21,
+	TT_Less = 1 << 22,
+
+	TT_Not = 1 << 23,
+	TT_Or = 1 << 24,
+	TT_And = 1 << 25
 };
 
 using ObjectPtr = std::shared_ptr<Object>;

@@ -4,7 +4,7 @@
 
 Interpreter::Interpreter(Node* scope)
 	:_root_scope(scope)
-	,_current_scope(nullptr)
+	,_current_scope(dynamic_cast<Scope*>(scope))
 {}
 
 Interpreter::~Interpreter()
@@ -40,10 +40,19 @@ void Interpreter::add_internal_function(InternalFunction* func)
 	_functions[func->get_name()] = func;
 }
 
+void Interpreter::run_once(Node* node)
+{
+	node->accept(*this);
+}
+
 void Interpreter::visit(Scope* node)
 {
 	const auto parent_scope = _current_scope;
 	_current_scope = node;
+	if (parent_scope)
+	{
+		_current_scope->set_stack_base(parent_scope->get_stack_base());
+	}
 	auto& nodes = node->get_nodes();
 
 	for (Node* child : nodes)
@@ -80,7 +89,7 @@ void Interpreter::visit(NumberLiteral* node)
 
 void Interpreter::visit(Variable* node)
 {
-	const auto index = _current_scope->apply_index_offset(node->get_stack_index());
+	const auto index = get_absolute_address(node->get_stack_index());
 
 	if(index < _stack.size())
 	{
@@ -160,6 +169,7 @@ void Interpreter::visit(Call* node)
 		}
 		LOG_INFO("Function args end");
 
+		_call_stack.emplace_back(func->get_name(), base_index);
 		func->run(this, base_index);
 
 		if(_return_value)
@@ -168,8 +178,9 @@ void Interpreter::visit(Call* node)
 			allocate_stack_variable(ret_index);
 			set_stack_variable(ret_index, std::move(_return_value));
 		}
+		_call_stack.pop_back();
 
-		LOG_INFO("Function call end");
+		LOG_INFO("Function call end {}", func->get_name());
 	}
 }
 
@@ -341,9 +352,18 @@ std::string Interpreter::print_value(ObjectPtr value) const
 	return {};
 }
 
+size_t Interpreter::get_absolute_address(size_t index) const
+{
+	if(!_call_stack.empty())
+	{
+		return _call_stack.back().second + index;
+	}
+	return index;
+}
+
 void Interpreter::allocate_stack_variable(size_t index)
 {
-	index = _current_scope->apply_index_offset(index);
+	index = get_absolute_address(index);
 	if(index >= _stack.size())
 	{
 		_stack.resize(index + 1);
@@ -356,7 +376,7 @@ void Interpreter::allocate_stack_variable(size_t index)
 
 bool Interpreter::set_stack_variable(size_t index, ObjectPtr object)
 {
-	index = _current_scope->apply_index_offset(index);
+	index = get_absolute_address(index);
 	const bool res = _stack.size() > index;
 	if (res)
 	{
@@ -376,7 +396,7 @@ Function* Interpreter::get_function(Call* node)
 	}
 	else
 	{
-		const auto index = _current_scope->apply_index_offset(node->get_var_index());
+		const auto index = get_absolute_address(node->get_var_index());
 
 		if (_stack.size() < index)
 		{

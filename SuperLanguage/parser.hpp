@@ -15,6 +15,8 @@ public:
 
 	Parser(std::vector<Token>&& tokens);
 
+	Node* add_tokens(const std::vector<Token>& tokens);
+
 	Node* parse();
 
 private:

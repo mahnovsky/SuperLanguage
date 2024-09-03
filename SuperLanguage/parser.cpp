@@ -9,6 +9,15 @@ Parser::Parser(std::vector<Token>&& tokens)
 {
 }
 
+Node* Parser::add_tokens(const std::vector<Token>& tokens)
+{
+	const auto size = _tokens.size();
+	_tokens.insert(_tokens.end(), tokens.begin(), tokens.end());
+	_current = _tokens.begin() + size;
+
+	return statement();
+}
+
 Node* Parser::parse()
 {
 	auto nodes = statementList();
@@ -169,7 +178,7 @@ Node* Parser::expression()
 	{
 		if(_current->type == TT_Id)
 		{
-			return get_variable();
+			return resolve_id();
 		}
 		assert(false);
 	}
@@ -260,9 +269,7 @@ Variable* Parser::create_variable()
 {
 	eat(TT_Let);
 
-	std::string name = _current_func.empty() ?
-		std::format("{}_{}", _scope_level, _current->name) :
-		std::format("{}_{}", _current_func, _current->name);
+	std::string name = std::format("{}_{}_{}", _scope_level, _current->name, _current_func);
 	eat(TT_Id);
 	const size_t var_offset = _index_counter++;
 	auto* var = new Variable(std::move(name), var_offset);
@@ -293,21 +300,14 @@ Variable* Parser::get_variable()
 		{
 			return var;
 		}
-
-		const auto var_name = std::format("{}_{}", _current_func, name);
-		if (const auto var = find_var(var_name))
-		{
-			return var;
-		}
 	}
 
 	auto scope = _scope_level;
 
 	while (scope >= 0)
 	{
-		auto scope_name = std::format("{}_{}", scope, name);
-
-		if (const auto var = find_var(scope_name))
+		const auto var_name = std::format("{}_{}_{}", scope, name, _current_func);
+		if (const auto var = find_var(var_name))
 		{
 			return var;
 		}
@@ -341,12 +341,6 @@ Parser::TypeContext Parser::get_variable_context(const std::string& name) const
 		{
 			return context;
 		}
-
-		const auto var_name = std::format("{}_{}", _current_func, name);
-		if (const auto context = find_var(param_name); context != TypeContext::None)
-		{
-			return context;
-		}
 	}
 	else
 	{
@@ -354,7 +348,7 @@ Parser::TypeContext Parser::get_variable_context(const std::string& name) const
 
 		while (scope >= 0)
 		{
-			auto scope_name = std::format("{}_{}", scope, name);
+			auto scope_name = std::format("{}_{}_{}", scope, name, _current_func);
 
 			if (const auto context = find_var(scope_name); context != TypeContext::None)
 			{

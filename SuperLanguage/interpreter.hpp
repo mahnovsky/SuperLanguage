@@ -19,6 +19,13 @@ public:
 
 	void add_internal_function(InternalFunction* func);
 
+	void run_once(Node* node);
+
+	const std::vector<std::pair<std::string, size_t>>& get_call_stack() const
+	{
+		return _call_stack;
+	}
+
 private:
 
 	void visit(Scope* node) override;
@@ -66,6 +73,8 @@ private:
 
 	std::string print_value(ObjectPtr value) const;
 
+	size_t get_absolute_address(size_t index) const;
+
 	void allocate_stack_variable(size_t index);
 
 	bool set_stack_variable(size_t index, ObjectPtr object);
@@ -77,4 +86,5 @@ private:
 	std::map<std::string, Function*> _functions;
 	std::vector<ObjectPtr> _stack;
 	ObjectPtr _return_value;
+	std::vector<std::pair<std::string, size_t>> _call_stack;
 };

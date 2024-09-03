@@ -6,6 +6,12 @@
 #include <format>
 
 
+enum LexerExpect : uint32_t
+{
+	LE_Begin = TT_Let | TT_Id | TT_ScopeBegin | TT_Fn | TT_Ret,
+	LE_Test
+};
+
 Token::Token(TokType t, ObjectPtr v)
 	: type(t)
 	, object(std::move(v))
@@ -28,7 +34,7 @@ std::string_view Lexer::read_word() const
 	std::string::const_iterator it = _current;
 	while(it != _end)
 	{
-		if(isalpha(*it) > 0)
+		if(isalpha(*it) > 0 || (it != _current && isdigit(*it)) || (*it) == '_')
 		{
 			++it;
 		}
@@ -106,6 +112,7 @@ std::vector<Token> Lexer::tokenize(const std::string& expression)
 
 	for (auto& line : lines)
 	{
+		++_current_line;
 		if(line.front() == '\n' || line.front() == '#')
 		{
 			continue;
@@ -114,7 +121,6 @@ std::vector<Token> Lexer::tokenize(const std::string& expression)
 		_current = line.begin();
 		_end = line.end();
 		process_line();
-		++_current_line;
 	}
 
 	return _tokens;
@@ -138,7 +144,7 @@ void Lexer::process_line()
 		++_current;
 	}
 
-	uint32_t expect = TT_Let | TT_Id | TT_ScopeBegin | TT_ScopeEnd | TT_Fn | TT_Ret;
+	uint32_t expect = LE_Begin | TT_ScopeEnd;
  	while (_current != _end)
 	{
 		eat_until_not(' ');
@@ -155,7 +161,7 @@ void Lexer::process_line()
 
 		if ((expect & TT_ScopeBegin) && try_put_token(TT_ScopeBegin, '{'))
 		{
-			expect = TT_Let | TT_Id | TT_ScopeBegin | TT_ScopeEnd;
+			expect = LE_Begin;
 		}
 		else if ((expect & TT_ScopeEnd) && try_put_token(TT_ScopeEnd, '}'))
 		{
@@ -301,7 +307,7 @@ bool Lexer::try_put_operation()
 
 bool Lexer::try_put_id()
 {
-	if(isalpha(*_current) > 0)
+	if(isalpha(*_current) > 0 || (*_current) == '_')
 	{
 		const auto word = read_word();
 		eat(word);

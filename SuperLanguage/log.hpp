@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <format>
 
-#define SHOW_INFO_LOG 1
+#define SHOW_INFO_LOG 0
 
 namespace details
 {

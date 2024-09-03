@@ -1,28 +1,31 @@
 fn print(a, b)
 {
+	let f = 5 + b;
 	let p = "fn test " + a;
 	p = p + " hi";
-
-	#p = b - 1;
-
-	prints(b, " ", p);
-
-	return b + 5;
+	{
+		__print("a: ", a, " b: ", b);
+		#p = b - 1;
+		
+		__print("f: ", f);
+	}
+	__dump_callstack();
+	return b + 45;
 }
 
-fn foo(t)
+fn foo(t, k)
 {
-	let h = "foo";
+	let h = "foo" + k;
 	let y = t * 3;
 
 	prints(h);
 
 	return y;
 }
-let res = foo(11);
-prints("foo res: ", res);
+let res = foo(11, "test");
+#__print("foo res: ", res);
 let s = "hello" + " world";
-prints(s);
+__print(s);
 s = s + " 1134";
 let x = 12;
 let y = 3 * ((x + 2) * (9 - 10));
@@ -31,7 +34,7 @@ y = 2.5 + 1;
 let test = x * y / 9;
 {
 	let g = print(s, x);
-	prints("print res: ", g);
+	__print("print res: ", g);
 	let miha = 15.0 / x;
 	x = miha * y;
 	{
