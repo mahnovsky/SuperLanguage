@@ -74,11 +74,15 @@ void Interpreter::visit(BinaryOperation* node)
 
 	switch (node->get_operation())
 	{
-	case '+': eval_plus(); break;
-	case '-': eval_minus(); break;
-	case '*': eval_mul(); break;
-	case '/': eval_div(); break;
-	default: break;
+	case Operation::Plus:			eval_plus();			break;
+	case Operation::Minus:			eval_minus();			break;
+	case Operation::Mul:			eval_mul();				break;
+	case Operation::Div:			eval_div();				break;
+	case Operation::Equal:			eval_equal();			break;
+	case Operation::Greater:		eval_greater();			break;
+	case Operation::Less:			eval_less();			break;
+	case Operation::EqualGreater:	eval_equal_greater();	break;
+	case Operation::EqualLess:		eval_equal_less();		break;
 	}
 }
 
@@ -201,34 +205,7 @@ void Interpreter::visit(Return* node)
 
 void Interpreter::eval_plus()
 {
-	int right = 0;
-	int left = 0;
-	float fright = 0;
-	float fleft = 0;
-
-	if (pop_stack(right))
-	{
-		if (pop_stack(left))
-		{
-			_stack.emplace_back(std::make_shared<Integer>(left + right));
-		}
-		else if (pop_stack(fleft))
-		{
-			_stack.emplace_back(std::make_shared<Float>(fleft + static_cast<float>(right)));
-		}
-	}
-	else if (pop_stack(fright))
-	{
-		if (pop_stack(left))
-		{
-			_stack.emplace_back(std::make_shared<Float>(static_cast<float>(left) + fright));
-		}
-		else if (pop_stack(fleft))
-		{
-			_stack.emplace_back(std::make_shared<Float>(fleft + fright));
-		}
-	}
-	else
+	if (!try_perform_op<PlusOp>()) 
 	{
 		std::string rvalue;
 		std::string lvalue;
@@ -236,100 +213,56 @@ void Interpreter::eval_plus()
 		{
 			_stack.emplace_back(std::make_shared<String>(lvalue + rvalue));
 		}
+		else
+		{
+			LOG_ERROR("Failed to perform plus operation");
+		}
 	}
 }
 
 void Interpreter::eval_minus()
 {
-	int right = 0;
-	int left = 0;
-	float fright = 0;
-	float fleft = 0;
-
-	if (pop_stack(right))
+	if(!try_perform_op<MinusOp>())
 	{
-		if (pop_stack(left))
-		{
-			_stack.emplace_back(std::make_shared<Integer>(left - right));
-		}
-		else if (pop_stack(fleft))
-		{
-			_stack.emplace_back(std::make_shared<Float>(fleft - static_cast<float>(right)));
-		}
-	}
-	else if (pop_stack(fright))
-	{
-		if (pop_stack(left))
-		{
-			_stack.emplace_back(std::make_shared<Float>(static_cast<float>(left) - fright));
-		}
-		else if (pop_stack(fleft))
-		{
-			_stack.emplace_back(std::make_shared<Float>(fleft - fright));
-		}
+		LOG_ERROR("Failed to perform minus operation");
 	}
 }
 
 void Interpreter::eval_mul()
 {
-	int right = 0;
-	int left = 0;
-	float fright = 0;
-	float fleft = 0;
-
-	if (pop_stack(right))
+	if (!try_perform_op<MulOp>())
 	{
-		if (pop_stack(left))
-		{
-			_stack.emplace_back(std::make_shared<Integer>(left * right));
-		}
-		else if (pop_stack(fleft))
-		{
-			_stack.emplace_back(std::make_shared<Float>(fleft * static_cast<float>(right)));
-		}
-	}
-	else if (pop_stack(fright))
-	{
-		if (pop_stack(left))
-		{
-			_stack.emplace_back(std::make_shared<Float>(static_cast<float>(left) * fright));
-		}
-		else if (pop_stack(fleft))
-		{
-			_stack.emplace_back(std::make_shared<Float>(fleft * fright));
-		}
+		LOG_ERROR("Failed to perform mul operation");
 	}
 }
 
 void Interpreter::eval_div()
 {
-	int right = 0;
-	int left = 0;
-	float fright = 0;
-	float fleft = 0;
+	if (!try_perform_op<DivOp>())
+	{
+		LOG_ERROR("Failed to perform mul operation");
+	}
+}
 
-	if (pop_stack(right))
-	{
-		if (pop_stack(left))
-		{
-			_stack.emplace_back(std::make_shared<Integer>(left / right));
-		}
-		else if (pop_stack(fleft))
-		{
-			_stack.emplace_back(std::make_shared<Float>(fleft / static_cast<float>(right)));
-		}
-	}
-	else if (pop_stack(fright))
-	{
-		if (pop_stack(left))
-		{
-			_stack.emplace_back(std::make_shared<Float>(static_cast<float>(left) / fright));
-		}
-		else if (pop_stack(fleft))
-		{
-			_stack.emplace_back(std::make_shared<Float>(fleft / fright));
-		}
-	}
+void Interpreter::eval_greater()
+{
+
+}
+
+void Interpreter::eval_less()
+{
+}
+
+void Interpreter::eval_equal()
+{
+}
+
+void Interpreter::eval_equal_greater()
+{
+}
+
+void Interpreter::eval_equal_less()
+{
 }
 
 std::string Interpreter::print_value(ObjectPtr value) const

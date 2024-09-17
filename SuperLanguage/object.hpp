@@ -57,10 +57,10 @@ private:
 	float _value;
 };
 
-class Boolean : public Object
+class Bool : public Object
 {
 public:
-	Boolean(bool v)
+	Bool(bool v)
 		:_value(v)
 	{}
 

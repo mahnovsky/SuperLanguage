@@ -42,4 +42,4 @@ let test = x * y / 9;
 	}
 }
 
-let miha = 1;
+#let miha = 1 > 4;

@@ -10,7 +10,8 @@ public:
 	{
 		None,
 		Number,
-		String
+		String,
+		Bool
 	};
 
 	Parser(std::vector<Token>&& tokens);
@@ -28,6 +29,8 @@ private:
 
 	Node* expression();
 
+	Node* bool_expression();
+
 	Node* number_expression();
 
 	Node* string_expression();
@@ -37,6 +40,8 @@ private:
 	Node* factor();
 
 	Node* term();
+
+	Node* bool_term();
 
 	Variable* create_variable();
 

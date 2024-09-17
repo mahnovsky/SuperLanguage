@@ -4,12 +4,64 @@
 #include <cctype>
 #include <charconv>
 #include <format>
+#include <map>
+
+#include "log.hpp"
 
 
 enum LexerExpect : uint32_t
 {
 	LE_Begin = TT_Let | TT_Id | TT_ScopeBegin | TT_Fn | TT_Ret,
 	LE_Test
+};
+
+namespace expects {
+	constexpr uint32_t LITERALS = TT_NumberLiteral | TT_StringLiteral | TT_BoolLiteral;
+	constexpr uint32_t LET = TT_Id;
+	constexpr uint32_t SCOPE_BEGIN = TT_Let | TT_Id | TT_ScopeBegin | TT_Fn | TT_Ret | TT_If;
+	constexpr uint32_t SCOPE_END = TT_Let | TT_Id | TT_ScopeBegin | TT_Fn | TT_Ret | TT_If | TT_ScopeBegin;
+	//TT_Id | TT_NumberLiteral | TT_LParen | TT_Fn | TT_StringLiteral;
+	constexpr uint32_t ASSIGN = TT_Id | TT_LParen | TT_Fn | LITERALS;
+	constexpr uint32_t ID = TT_Assign | TT_Operation | TT_Semicolon | TT_LParen | TT_Coma | TT_RParen;
+	constexpr uint32_t LPAREN = TT_Id | LITERALS | TT_LParen | TT_RParen;
+	constexpr uint32_t RPAREN = TT_LParen | TT_RParen | TT_Operation | TT_ScopeBegin | TT_Semicolon;
+	constexpr uint32_t COMA = TT_Id | LITERALS;
+	constexpr uint32_t FN = TT_LParen | TT_NumberLiteral | TT_StringLiteral | TT_Id | TT_Ret;
+	constexpr uint32_t RETURN = TT_LParen | TT_NumberLiteral | TT_StringLiteral | TT_Id;
+	constexpr uint32_t NUMBER_LITERAL = TT_Operation | TT_Semicolon | TT_RParen | TT_Coma;
+	constexpr uint32_t STRING_LITERAL = TT_Operation | TT_Semicolon | TT_RParen | TT_Coma;
+	constexpr uint32_t BOOL_LITERAL = TT_Operation | TT_Semicolon | TT_RParen | TT_Coma;
+	constexpr uint32_t OPERATION = TT_Id | TT_NumberLiteral | TT_LParen | TT_StringLiteral;
+	constexpr uint32_t IF = TT_LParen;
+	constexpr uint32_t ELSE = TT_ScopeBegin;
+	constexpr uint32_t LOOP = TT_LParen;
+	constexpr uint32_t AND = TT_Id | LITERALS;
+	constexpr uint32_t OR = TT_Id | LITERALS;
+	constexpr uint32_t GREATER = TT_Id | TT_NumberLiteral;
+	constexpr uint32_t LESS = TT_Id | TT_NumberLiteral;
+}
+
+using CharTokenInfo = std::tuple< char, uint32_t>;
+std::map<uint32_t, CharTokenInfo> char_map = {
+	{ TT_LParen,  { '(', expects::LPAREN } },
+	{ TT_RParen, { ')', expects::RPAREN } },
+	{ TT_ScopeBegin, { '{', expects::SCOPE_BEGIN} },
+	{ TT_ScopeEnd, { '}', expects::SCOPE_END} },
+	{ TT_Assign, { '=', expects::ASSIGN} },
+	{ TT_Coma, { ',', expects::COMA} },
+	{ TT_Semicolon, { ';', 0 } },
+};
+
+using TokenInfo = std::tuple< std::string_view, uint32_t>;
+std::map<uint32_t, TokenInfo> string_map = {
+	{ TT_Let,  { "let", expects::LET } },
+	{ TT_Fn, { "fn", expects::FN } },
+	{ TT_Ret, { "return", expects::RETURN } },
+	{ TT_If, { "if", expects::IF } },
+	{ TT_Else, { "else", expects::ELSE } },
+	{ TT_Loop, { "while", expects::LOOP } },
+	{ TT_And, { "and", expects::AND } },
+	{ TT_Or, {"or", expects::OR } }
 };
 
 Token::Token(TokType t, ObjectPtr v)
@@ -25,6 +77,9 @@ std::optional<TokType> Lexer::match_op(char ch)
 	case '-': return TT_Minus;
 	case '*': return TT_Mul;
 	case '/': return TT_Div;
+	case '>': return TT_Greater;
+	case '<': return TT_Less;
+	case '=': return TT_Equal;
 	default: return {};
 	}
 }
@@ -144,7 +199,25 @@ void Lexer::process_line()
 		++_current;
 	}
 
-	uint32_t expect = LE_Begin | TT_ScopeEnd;
+	uint32_t expect = TT_Let | TT_Id | TT_ScopeBegin | TT_Fn | TT_Ret | TT_ScopeEnd;
+
+	struct ScopeEnd
+	{
+		ScopeEnd(Lexer* l)
+			:lexer(l)
+		{}
+
+		~ScopeEnd()
+		{
+			if(lexer)
+			{
+				lexer->fill_last_token();
+			}
+		}
+
+		Lexer* lexer;
+	};
+
  	while (_current != _end)
 	{
 		eat_until_not(' ');
@@ -154,72 +227,49 @@ void Lexer::process_line()
 			break;
 		}
 		const auto prev_size = _tokens.size();
-		if ((expect & TT_Semicolon) && try_put_token(TT_Semicolon, ';'))
+		if ((expect & TT_Semicolon) && try_put_token(TT_Semicolon))
 		{
 			break;
 		}
 
-		if ((expect & TT_ScopeBegin) && try_put_token(TT_ScopeBegin, '{'))
+		ScopeEnd scope_end{ this };
+
+		if( find_keyword(expect) )
 		{
-			expect = LE_Begin;
+			continue;
 		}
-		else if ((expect & TT_ScopeEnd) && try_put_token(TT_ScopeEnd, '}'))
+
+		if(find_char(expect))
 		{
-			expect = TT_Let | TT_Id | TT_ScopeBegin;
+			continue;
 		}
-		else if ((expect & TT_LParen) && try_put_token(TT_LParen, '('))
+
+		if(find_literal(expect))
 		{
-			expect = TT_Id | TT_NumberLiteral | TT_StringLiteral | TT_LParen | TT_RParen;
+			continue;
 		}
-		else if ((expect & TT_RParen) && try_put_token(TT_RParen, ')'))
+
+		if ((expect & TT_Operation) && try_put_operation())
 		{
-			expect = TT_Operation | TT_Semicolon | TT_RParen | TT_ScopeBegin;
+			expect = expects::OPERATION;
+			const auto last_type = _tokens.back().type;
+			if (last_type == TT_Greater || last_type == TT_Less)
+			{
+				expect |= TT_Operation;
+			}
+			continue;
 		}
-		else if((expect & TT_Coma) && try_put_token(TT_Coma, ','))
+
+		if ((expect & TT_Id) && try_put_id())
 		{
-			expect = TT_Id | TT_NumberLiteral | TT_StringLiteral;
+			expect = expects::ID;
+			continue;
 		}
-		else if ((expect & TT_Assign) && try_put_token(TT_Assign, '='))
-		{
-			expect = TT_Id | TT_NumberLiteral | TT_LParen | TT_Fn | TT_StringLiteral;
-		}
-		else if ((expect & TT_Let) && try_put_token(TT_Let, "let"))
-		{
-			expect = TT_Id;
-		}
-		else if((expect & TT_Fn) && try_put_token(TT_Fn, "fn"))
-		{
-			expect = TT_LParen | TT_NumberLiteral | TT_StringLiteral | TT_Id | TT_Ret;
-		}
-		else if((expect & TT_Ret) && try_put_token(TT_Ret, "return"))
-		{
-			expect = TT_LParen | TT_NumberLiteral | TT_StringLiteral | TT_Id;
-		}
-		else if ((expect & TT_NumberLiteral) && try_put_number_literal())
-		{
-			expect = TT_Operation | TT_Semicolon | TT_RParen | TT_Coma;
-		}
-		else if ((expect & TT_StringLiteral) && try_put_string_literal())
-		{
-			expect = TT_Operation | TT_Semicolon | TT_RParen | TT_Coma;
-		}
-		else if ((expect & TT_Operation) && try_put_operation())
-		{
-			expect = TT_Id | TT_NumberLiteral | TT_LParen | TT_StringLiteral;
-		}
-		else if ((expect & TT_Id) && try_put_id())
-		{
-			expect = TT_Assign | TT_Operation | TT_Semicolon | TT_LParen | TT_Coma | TT_RParen;
-		}
-		else if((*_current) != ' ' && (*_current) != '\n')
+
+ 		if((*_current) != ' ' && (*_current) != '\n')
 		{
 			auto err_msg = std::format("Unexpected token type {}", *_current);
 			fatal_error(err_msg);
-		}
-
-		if(_tokens.size() > prev_size)
-		{
-			fill_last_token();
 		}
 	}
 
@@ -232,36 +282,68 @@ void Lexer::process_line()
 	}
 }
 
-bool Lexer::try_put_token(TokType tok, char ch)
+bool Lexer::try_put_token(TokType tok)
 {
-	if ((*_current) == ch)
+	if(const auto it = char_map.find(tok); it != char_map.end())
 	{
-		eat_current();
-		_tokens.emplace_back(tok);
-		return true;
+		skip_fillers();
+
+		if ((*_current) == std::get<char>(it->second))
+		{
+			eat_current();
+			_tokens.emplace_back(tok);
+			return true;
+		}
+		
 	}
+
+	LOG_INFO("Cant convert token {} to char", tok);
 	return false;
 }
 
-bool Lexer::try_put_token(TokType tok, const std::string_view& match_word)
+bool Lexer::try_put_keyword_token(TokType tok)
 {
-	if (isalpha(*_current) > 0)
+	if (const auto it = string_map.find(tok); it != string_map.end())
+	{
+		skip_fillers();
+		if (isalpha(*_current) > 0)
+		{
+			const auto word = read_word();
+
+			if (word == std::get<std::string_view>(it->second))
+			{
+				eat(word);
+				_tokens.emplace_back(tok);
+
+				return true;
+			}
+		}
+	}
+	LOG_INFO("Cant convert token {} to string", tok);
+	return false;
+}
+
+bool Lexer::try_put_bool_literal()
+{
+	skip_fillers();
+	if ((*_current == 'T') || (*_current) == 'F')
 	{
 		const auto word = read_word();
-
-		if (word == match_word)
+		const bool is_true = word == "True";
+		if(is_true || word == "False")
 		{
-			eat(word);
-			_tokens.emplace_back(tok);
-
-			return true;
+			_tokens.emplace_back(TT_BoolLiteral, std::make_shared<Bool>(is_true));
 		}
+		
+
+		return true;
 	}
 	return false;
 }
 
 bool Lexer::try_put_number_literal()
 {
+	skip_fillers();
 	if(isdigit(*_current) > 0)
 	{
 		const auto number = read_number();
@@ -275,6 +357,7 @@ bool Lexer::try_put_number_literal()
 
 bool Lexer::try_put_string_literal()
 {
+	skip_fillers();
 	constexpr char quote = '\"';
 	if((*_current) == quote)
 	{
@@ -295,6 +378,7 @@ bool Lexer::try_put_string_literal()
 
 bool Lexer::try_put_operation()
 {
+	skip_fillers();
 	if(auto op = match_op(*_current))
 	{
 		_tokens.emplace_back(op.value());
@@ -309,6 +393,7 @@ bool Lexer::try_put_id()
 {
 	if(isalpha(*_current) > 0 || (*_current) == '_')
 	{
+		skip_fillers();
 		const auto word = read_word();
 		eat(word);
 		_tokens.emplace_back(TT_Id, std::string{word});
@@ -370,5 +455,142 @@ void Lexer::fill_last_token()
 	{
 		_tokens.back().line = _current_line;
 		_tokens.back().pos = _current - _begin;
+	}
+}
+
+void Lexer::skip_fillers()
+{
+	eat_until_not('\t');
+	eat_until_not(' ');
+}
+
+void Lexer::end_line()
+{
+	skip_fillers();
+	if(!try_put_token(TT_Semicolon))
+	{
+		fatal_error("Semicolon expected");
+	}
+}
+
+bool Lexer::find_keyword(uint32_t& expect)
+{
+	constexpr uint32_t keyword_tokens[] = { TT_Let, TT_Fn, TT_Ret, TT_If, TT_Else, TT_Loop };
+	for (uint32_t i = 0; i < sizeof(keyword_tokens); ++i)
+	{
+		auto token = keyword_tokens[i];
+		if ((expect & token) && try_put_keyword_token(static_cast<TokType>(token)))
+		{
+			if (auto it = string_map.find(token); it != string_map.end())
+			{
+				expect = std::get<uint32_t>(it->second);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool Lexer::find_char(uint32_t& expect)
+{
+	constexpr uint32_t char_tokens[] = { TT_ScopeBegin, TT_ScopeEnd, TT_Assign, TT_LParen, TT_RParen, TT_Coma };
+	for (uint32_t token : char_tokens)
+	{
+		if ((expect & token) && try_put_token(static_cast<TokType>(token)))
+		{
+			if (auto it = char_map.find(token); it != char_map.end())
+			{
+				expect = std::get<uint32_t>(it->second);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool Lexer::find_literal(uint32_t& expect)
+{
+	bool res = (expect & TT_BoolLiteral) && try_put_bool_literal();
+	if(res) 
+	{
+		expect = expects::BOOL_LITERAL;
+		return res;
+	}
+
+	res = (expect & TT_NumberLiteral) && try_put_number_literal();
+	if (res)
+	{
+		expect = expects::NUMBER_LITERAL;
+		return res;
+	}
+
+	res = (expect & TT_StringLiteral) && try_put_string_literal();
+	if (res)
+	{
+		expect = expects::STRING_LITERAL;
+		return res;
+	}
+
+	return res;
+}
+
+void Lexer::process_begin()
+{
+	if(try_put_token(TT_ScopeBegin))
+	{
+		process_begin();
+	}
+	else if (try_put_token(TT_ScopeEnd))
+	{
+		
+	}
+	else if(try_put_keyword_token(TT_Let))
+	{
+		process_assign();
+	}
+	else if(try_put_keyword_token(TT_If))
+	{
+		process_expression();
+	}
+	else if (try_put_keyword_token(TT_Else))
+	{
+		
+	}
+	else
+	{
+		process_assign();
+	}
+}
+
+void Lexer::process_assign()
+{
+	if (try_put_id())
+	{
+		try_put_token(TT_Assign);
+
+		process_expression();
+	}
+	else
+	{
+		fatal_error("Failed process assign, variable name expected");
+	}
+}
+
+void Lexer::process_expression()
+{
+	if(try_put_token(TT_LParen) || try_put_token(TT_RParen))
+	{
+		process_expression();
+	}
+	else if(try_put_id() || try_put_number_literal() || try_put_string_literal())
+	{
+		if(try_put_operation())
+		{
+			process_expression();
+		}
+	}
+	else
+	{
+		fatal_error("Error");
 	}
 }

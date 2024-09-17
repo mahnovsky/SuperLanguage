@@ -9,6 +9,7 @@
 #include "parser.hpp"
 #include "interpreter.hpp"
 #include "log.hpp"
+#include "number.hpp"
 
 void init_internal_functions(Interpreter* interp)
 {
@@ -55,10 +56,29 @@ void init_internal_functions(Interpreter* interp)
 				puts(key.c_str());
 			}
 		}));
+
+	interp->add_internal_function(new InternalFunction("__exit", [](Interpreter* interp, Scope* s)
+		{
+			auto vars = s->get_variables();
+			if (vars.size() == 1)
+			{
+				auto obj = interp->get_stack_variable(vars.back());
+				int res = 0;
+				if (obj->get(&res))
+				{
+					exit(res);
+				}
+			}
+		}));
 }
 
 int main(int argc, char** argv)
 {
+	Number a{ 11 };
+	Number b{ 22.3f };
+
+	Number res = a.do_op<PlusOp>(b);
+
 	if (argc <= 1)
 	{
 		std::cerr << "Invalid args, script file name missing\n";

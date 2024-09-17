@@ -3,6 +3,10 @@
 #include "nodes.hpp"
 #include <format>
 
+#include "log.hpp"
+#include "number.hpp"
+
+
 class Interpreter final : public NodeVisitor
 {
 public:
@@ -56,6 +60,16 @@ private:
 
 	void eval_div();
 
+	void eval_greater();
+
+	void eval_less();
+
+	void eval_equal();
+
+	void eval_equal_greater();
+
+	void eval_equal_less();
+
 	template <class T>
 	bool pop_stack(T& val)
 	{
@@ -66,6 +80,38 @@ private:
 			val = v;
 			_stack.pop_back();
 			return true;
+		}
+
+		return false;
+	}
+
+	std::optional<Number> pop_stack_number()
+	{
+		if (!_stack.empty())
+		{
+			const auto res = Number::get_from_object(_stack.back());
+			if (res.has_value())
+			{
+				_stack.pop_back();
+			}
+			return res;
+		}
+		return {};
+	}
+
+	template <class Op>
+	bool try_perform_op()
+	{
+		if (const auto right_num = pop_stack_number())
+		{
+			if (const auto left_num = pop_stack_number())
+			{
+				const auto res = left_num->do_op<Op>(*right_num);
+
+				_stack.emplace_back(res.as_object());
+
+				return true;
+			}
 		}
 
 		return false;

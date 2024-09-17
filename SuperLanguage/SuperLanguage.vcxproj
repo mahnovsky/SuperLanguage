@@ -155,6 +155,7 @@
     <ClInclude Include="lexer.hpp" />
     <ClInclude Include="log.hpp" />
     <ClInclude Include="nodes.hpp" />
+    <ClInclude Include="number.hpp" />
     <ClInclude Include="parser.hpp" />
     <ClInclude Include="utils.hpp" />
     <ClInclude Include="object.hpp" />

@@ -19,11 +19,24 @@ public:
 	virtual void accept(NodeVisitor& visitor) = 0;
 };
 
+enum class Operation
+{
+	Plus,
+	Minus,
+	Mul,
+	Div,
+	Greater,
+	Less,
+	Equal,
+	EqualGreater,
+	EqualLess
+};
+
 
 class BinaryOperation : public Node
 {
 public:
-	BinaryOperation(Node* left, Node* right, char op)
+	BinaryOperation(Node* left, Node* right, Operation op)
 		:_left(left)
 		, _right(right)
 		, _operation(op)
@@ -35,12 +48,12 @@ public:
 
 	Node* get_right() const { return _right; }
 
-	char get_operation() const { return _operation; }
+	Operation get_operation() const { return _operation; }
 
 private:
 	Node* _left = nullptr;
 	Node* _right = nullptr;
-	char _operation = 0;
+	Operation _operation;
 };
 
 class Scope : public Node

@@ -170,20 +170,36 @@ Node* Parser::expression()
 	{
 		return string_expression();
 	}
-	else if(_current_context == TypeContext::Number)
+	if(_current_context == TypeContext::Number)
 	{
 		return number_expression();
 	}
-	else
+	if(_current_context == TypeContext::Bool)
 	{
-		if(_current->type == TT_Id)
-		{
-			return resolve_id();
-		}
-		assert(false);
+		return bool_expression();
 	}
 
+	if(_current->type == TT_Id)
+	{
+		return resolve_id();
+	}
+	assert(false);
+
 	return nullptr;
+}
+
+Node* Parser::bool_expression()
+{
+	auto node = term();
+
+	while (_current->type == TT_Plus || _current->type == TT_Minus)
+	{
+		const auto op = _current->type == TT_Plus ? Operation::Plus : Operation::Minus;
+		eat(_current->type);
+		node = new BinaryOperation(node, term(), op);
+	}
+
+	return node;
 }
 
 Node* Parser::number_expression()
@@ -192,7 +208,7 @@ Node* Parser::number_expression()
 
 	while (_current->type == TT_Plus || _current->type == TT_Minus)
 	{
-		const char op = _current->type == TT_Plus ? '+' : '-';
+		const auto op = _current->type == TT_Plus ? Operation::Plus : Operation::Minus;
 		eat(_current->type);
 		node = new BinaryOperation(node, term(), op);
 	}
@@ -206,7 +222,7 @@ Node* Parser::string_expression()
 	while (_current->type == TT_Plus)
 	{
 		eat(TT_Plus);
-		node = new BinaryOperation(node, string_factor(), '+');
+		node = new BinaryOperation(node, string_factor(), Operation::Plus);
 	}
 
 	return node;
@@ -257,8 +273,42 @@ Node* Parser::term()
 
 	while(_current->type == TT_Mul || _current->type == TT_Div)
 	{
-		const char op = _current->type == TT_Mul ? '*' : '/';
+		const auto op = _current->type == TT_Mul ? Operation::Mul : Operation::Div;
 		eat(_current->type);
+		node = new BinaryOperation(node, factor(), op);
+	}
+
+	return node;
+}
+
+Node* Parser::bool_term()
+{
+	auto node = factor();
+
+	while (_current->type == TT_Equal || _current->type == TT_Greater || _current->type == TT_Less)
+	{
+		auto prev_type = _current->type;
+		eat(_current->type);
+
+		Operation op = Operation::Equal;
+		if(prev_type == TT_Greater)
+		{
+			op = Operation::Greater;
+		}
+		else if (prev_type == TT_Less)
+		{
+			op = Operation::Less;
+		}
+
+		if(_current->type == TT_Equal && prev_type == TT_Greater)
+		{
+			op = Operation::EqualGreater;
+		}
+		if (_current->type == TT_Equal && prev_type == TT_Less)
+		{
+			op = Operation::EqualLess;
+		}
+
 		node = new BinaryOperation(node, factor(), op);
 	}
 
@@ -386,26 +436,56 @@ Node* Parser::resolve_id()
 Parser::TypeContext Parser::get_expression_context() const
 {
 	auto it = _current;
-	while (it != _tokens.end() && it->type != TT_Semicolon)
+	TypeContext context = TypeContext::None;
+	while (it != _tokens.end() && it->type != TT_Semicolon && it->type != TT_Coma)
 	{
-		if(it->type == TT_NumberLiteral)
+		if(it->type == TT_Equal || it->type == TT_Greater || it->type == TT_Less)
+		{
+			return TypeContext::Bool;
+		}
+
+		if(it->type == TT_Mul || it->type == TT_Div || it->type == TT_Minus)
 		{
 			return TypeContext::Number;
 		}
 
+		if(it->type == TT_Plus)
+		{
+			if(context == TypeContext::Number)
+			{
+				return TypeContext::Number;
+			}
+
+			if(context == TypeContext::String)
+			{
+				return TypeContext::String;
+			}
+		}
+
+		if(it->type == TT_NumberLiteral)
+		{
+			context = TypeContext::Number;
+		}
+
 		if (it->type == TT_StringLiteral)
 		{
-			return TypeContext::String;
+			context = TypeContext::String;
 		}
+
+		if(it->type == TT_BoolLiteral)
+		{
+			context = TypeContext::Bool;
+		}
+
 		if (it->type == TT_Id)
 		{
 			const auto res = get_variable_context(it->name);
 			if (res != TypeContext::None)
 			{
-				return res;
+				context = res;
 			}
 		}
 		++it;
 	}
-	return TypeContext::None;
+	return context;
 }

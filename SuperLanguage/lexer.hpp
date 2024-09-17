@@ -41,7 +41,11 @@ enum TokType : uint32_t
 
 	TT_Not = 1 << 23,
 	TT_Or = 1 << 24,
-	TT_And = 1 << 25
+	TT_And = 1 << 25,
+
+	TT_If = 1 << 26,
+	TT_Else = 1 << 27,
+	TT_Loop = 1 << 28
 };
 
 using ObjectPtr = std::shared_ptr<Object>;
@@ -72,7 +76,7 @@ public:
 	std::vector<Token> tokenize(const std::string& expression);
 
 private:
-	static std::optional<TokType> match_op(char ch);
+	std::optional<TokType> match_op(char ch);
 
 	std::string_view read_word() const;
 
@@ -82,9 +86,11 @@ private:
 
 	void process_line();
 
-	bool try_put_token(TokType tok, char ch);
+	bool try_put_token(TokType tok);
 
-	bool try_put_token(TokType tok, const std::string_view& match_word);
+	bool try_put_keyword_token(TokType tok);
+
+	bool try_put_bool_literal();
 
 	bool try_put_number_literal();
 
@@ -105,6 +111,22 @@ private:
 	void fatal_error(const std::string& error_msg);
 
 	void fill_last_token();
+
+	void skip_fillers();
+
+	void end_line();
+
+	bool find_keyword(uint32_t& expect);
+
+	bool find_char(uint32_t& expect);
+
+	bool find_literal(uint32_t& expect);
+
+	void process_begin();
+
+	void process_assign();
+
+	void process_expression();
 
 private:
 	std::vector<Token> _tokens;

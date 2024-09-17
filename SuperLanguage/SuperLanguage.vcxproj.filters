@@ -62,5 +62,8 @@
     <ClInclude Include="log.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="number.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
