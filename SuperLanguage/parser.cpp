@@ -20,13 +20,13 @@ Node* Parser::add_tokens(const std::vector<Token>& tokens)
 
 Node* Parser::parse()
 {
-	auto nodes = statementList();
+	auto nodes = statement_list();
 	return new Scope(std::move(nodes));
 }
 
-void Parser::eat(TokType tokType)
+void Parser::eat(TokType tok_type)
 {
-	if (_current != _tokens.end() && _current->type == tokType)
+	if (_current != _tokens.end() && _current->type == tok_type)
 	{
 		++_current;
 	}
@@ -37,7 +37,7 @@ void Parser::eat(TokType tokType)
 	}
 }
 
-std::vector<Node*> Parser::statementList()
+std::vector<Node*> Parser::statement_list()
 {
 	std::vector<Node*> nodes;
 
@@ -112,7 +112,7 @@ Node* Parser::statement()
 		const auto base_index = _index_counter;
 		++_scope_level;
 		eat(TT_ScopeBegin);
-		auto nodes = statementList();
+		auto nodes = statement_list();
 		eat(TT_ScopeEnd);
 		--_scope_level;
 		_skip_semicolon = true;
@@ -267,7 +267,7 @@ Node* Parser::string_factor()
 	{
 		ObjectPtr f = _current->object;
 		eat(TT_StringLiteral);
-		return new StringLiteral(f);
+		return new Literal(f);
 	}
 
 	return nullptr;
@@ -275,6 +275,12 @@ Node* Parser::string_factor()
 
 Node* Parser::factor()
 {
+	if(_current->type == TT_BoolLiteral)
+	{
+		ObjectPtr f = _current->object;
+		eat(TT_BoolLiteral);
+		return new Literal(f);
+	}
 	if(_current->type == TT_LParen)
 	{
 		eat(TT_LParen);

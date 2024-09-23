@@ -88,7 +88,7 @@ void Call::accept(NodeVisitor& visitor)
 	visitor.visit(this);
 }
 
-void StringLiteral::accept(NodeVisitor& visitor)
+void Literal::accept(NodeVisitor& visitor)
 {
 	visitor.visit(this);
 }

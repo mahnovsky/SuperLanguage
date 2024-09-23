@@ -328,6 +328,7 @@ bool Lexer::try_put_bool_literal()
 		const bool is_true = word == "True";
 		if(is_true || word == "False")
 		{
+			eat(word);
 			_tokens.emplace_back(TT_BoolLiteral, std::make_shared<Bool>(is_true));
 		}
 		

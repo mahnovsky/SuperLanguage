@@ -42,7 +42,7 @@ private:
 
 	void visit(Assign* node) override;
 
-	void visit(StringLiteral* node) override;
+	void visit(Literal* node) override;
 
 	void visit(Function* node) override;
 

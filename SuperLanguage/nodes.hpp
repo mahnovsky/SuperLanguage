@@ -148,16 +148,16 @@ private:
 	bool _declaration;
 };
 
-class StringLiteral : public Node
+class Literal : public Node
 {
 public:
-	StringLiteral(ObjectPtr val)
+	Literal(ObjectPtr val)
 		:_value(std::move(val))
 	{}
 
 	void accept(NodeVisitor& visitor) override;
 
-	ObjectPtr get_string()
+	ObjectPtr get_object()
 	{
 		return _value;
 	}
@@ -295,7 +295,7 @@ public:
 	virtual void visit(NumberLiteral* node) = 0;
 	virtual void visit(Assign* node) = 0;
 	virtual void visit(Variable* node) = 0;
-	virtual void visit(StringLiteral* node) = 0;
+	virtual void visit(Literal* node) = 0;
 	virtual void visit(Function* node) = 0;
 	virtual void visit(InternalFunction* node) = 0;
 	virtual void visit(Call* node) = 0;

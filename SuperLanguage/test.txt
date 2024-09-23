@@ -54,14 +54,24 @@ fn recursion_test(miha)
 	else
 	{
 		__print("recursion end");
+
+		#__exit(miha);
 	}
 }
 
 recursion_test(5);
-// let arr = [1, 2, 3];
+# TODO: need to implement arrays
+# let arr = [1, 2, 3];
 let counter = 0;
 while(counter < 12)
 {
 	__print("Iteration: ", counter);
 	counter = counter + 1;
+}
+
+let boll = True;
+
+if(boll)
+{
+	__print("yes");
 }

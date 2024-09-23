@@ -130,9 +130,9 @@ void Interpreter::visit(Assign* node)
 	}
 }
 
-void Interpreter::visit(StringLiteral* node)
+void Interpreter::visit(Literal* node)
 {
-	_stack.emplace_back(node->get_string());
+	_stack.emplace_back(node->get_object());
 }
 
 void Interpreter::visit(Function* node)

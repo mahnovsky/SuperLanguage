@@ -21,9 +21,9 @@ public:
 	Node* parse();
 
 private:
-	void eat(TokType tokType);
+	void eat(TokType tok_type);
 
-	std::vector<Node*> statementList();
+	std::vector<Node*> statement_list();
 
 	Node* statement();
 
