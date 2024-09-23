@@ -50,7 +50,7 @@ public:
 	{}
 
 	template <class Op>
-	Number do_op(float other) const
+	Number perform_op(float other) const
 	{
 		if (_is_int)
 		{
@@ -60,7 +60,7 @@ public:
 	}
 
 	template <class Op>
-	Number do_op(int other) const
+	Number perform_op(int other) const
 	{
 		if (_is_int)
 		{
@@ -70,13 +70,43 @@ public:
 	}
 
 	template <class Op>
-	Number do_op(Number other) const
+	Number perform_op(Number other) const
 	{
 		if(_is_int)
 		{
-			return other.do_op<Op>(_value.i_num);
+			return other.perform_op<Op>(_value.i_num);
 		}
-		return other.do_op<Op>(_value.f_num);
+		return other.perform_op<Op>(_value.f_num);
+	}
+
+	template <class Op>
+	bool perform_bool_op(int other) const
+	{
+		if (_is_int)
+		{
+			return Op::eval(other, _value.i_num);
+		}
+		return Op::eval(other, _value.f_num);
+	}
+
+	template <class Op>
+	bool perform_bool_op(float other) const
+	{
+		if (_is_int)
+		{
+			return Op::eval(other, _value.i_num);
+		}
+		return Op::eval(other, _value.f_num);
+	}
+
+	template <class Op>
+	bool perform_bool_op(Number other) const
+	{
+		if (_is_int)
+		{
+			return other.perform_bool_op<Op>(_value.i_num);
+		}
+		return other.perform_bool_op<Op>(_value.f_num);
 	}
 
 private:
@@ -102,3 +132,18 @@ GENERATE_OP(Plus, +);
 GENERATE_OP(Minus, -);
 GENERATE_OP(Mul, *);
 GENERATE_OP(Div, /);
+
+#define GENERATE_BOOL_OP(name, op) \
+struct name ## Op \
+{ \
+	static bool eval(int a, int b) { return a op b; } \
+	static bool eval(float a, float b) { return a op b; } \
+	static bool eval(int a, float b) { return a op b; } \
+	static bool eval(float a, int b) { return a op b ; } \
+};
+
+GENERATE_BOOL_OP(Greater, >);
+GENERATE_BOOL_OP(Less, <);
+GENERATE_BOOL_OP(Equal, ==);
+GENERATE_BOOL_OP(EqualGreater, >=);
+GENERATE_BOOL_OP(EqualLess, <= );

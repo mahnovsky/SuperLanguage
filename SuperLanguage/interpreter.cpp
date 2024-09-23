@@ -124,14 +124,10 @@ void Interpreter::visit(Assign* node)
 		allocate_stack_variable(node->get_var_index());
 		set_stack_variable(node->get_var_index(), val);
 	}
-	else
+	else if (!set_stack_variable(node->get_var_index(), val))
 	{
-		if (!set_stack_variable(node->get_var_index(), val))
-		{
-			LOG_INFO("Failed to assign, variable \'{}\' not exist in current scope", node->get_var_index());
-		}
+		LOG_INFO("Failed to assign, variable \'{}\' not exist in current scope", node->get_var_index());
 	}
-	
 }
 
 void Interpreter::visit(StringLiteral* node)
@@ -150,6 +146,7 @@ void Interpreter::visit(Function* node)
 
 void Interpreter::visit(InternalFunction* node)
 {
+	// ? 
 }
 
 void Interpreter::visit(Call* node)
@@ -203,6 +200,47 @@ void Interpreter::visit(Return* node)
 	}
 }
 
+void Interpreter::visit(BranchIfElse* node)
+{
+	node->get_expression()->accept(*this);
+	bool value;
+	if(pop_stack(value))
+	{
+		node->execute(*this, value);
+	}
+	else
+	{
+		LOG_ERROR("Failed to execute if statement, bool value expected");
+	}
+}
+
+void Interpreter::visit(Loop* node)
+{
+	const auto expr = node->get_expression();
+	const auto scope = node->get_scope();
+	if (!scope)
+	{
+		LOG_ERROR("Failed to execute loop, no scope to execute");
+		return;
+	}
+
+	bool value = false;
+	do
+	{
+		expr->accept(*this);
+		if (pop_stack(value))
+		{
+			scope->accept(*this);
+		}
+		else
+		{
+			LOG_ERROR("Failed to execute loop statement, bool value expected");
+			break;
+		}
+	}
+	while (value);
+}
+
 void Interpreter::eval_plus()
 {
 	if (!try_perform_op<PlusOp>()) 
@@ -246,41 +284,52 @@ void Interpreter::eval_div()
 
 void Interpreter::eval_greater()
 {
-
+	perform_bool_op<GreaterOp>();
 }
 
 void Interpreter::eval_less()
 {
+	perform_bool_op<LessOp>();
 }
 
 void Interpreter::eval_equal()
 {
+	perform_bool_op<EqualOp>();
 }
 
 void Interpreter::eval_equal_greater()
 {
+	perform_bool_op<EqualGreaterOp>();
 }
 
 void Interpreter::eval_equal_less()
 {
+	perform_bool_op<EqualLessOp>();
 }
 
 std::string Interpreter::print_value(ObjectPtr value) const
 {
-	int ival = 0;
-	float fval = 0;
-	std::string s;
+	int ival;
 	if (value->get(&ival))
 	{
 		return std::format("value: {}", ival);
 	}
-	else if (value->get(&fval))
+
+	float fval;
+	if (value->get(&fval))
 	{
 		return std::format("value: {}", fval);
 	}
-	else if(value->get(&s))
+
+	std::string s;
+	if(value->get(&s))
 	{
 		return std::format("value: {}", s);
+	}
+	bool bval;
+	if(value->get(&bval))
+	{
+		return std::format("value: {}", bval);
 	}
 	return {};
 }

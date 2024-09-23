@@ -153,3 +153,46 @@ Node* Return::get_expression() const
 {
 	return _expression;
 }
+
+BranchIfElse::BranchIfElse(Node* expression, Scope* scope, Scope* else_scope)
+	:_expression(expression)
+	,_scope(scope)
+	,_else_scope(else_scope)
+{}
+
+void BranchIfElse::accept(NodeVisitor& visitor)
+{
+	visitor.visit(this);
+}
+
+Node* BranchIfElse::get_expression() const
+{
+	return _expression;
+}
+
+void BranchIfElse::execute(NodeVisitor& visitor, bool main_branch)
+{
+	if(main_branch)
+	{
+		visitor.visit(_scope);
+	}
+	else if(_else_scope)
+	{
+		visitor.visit(_else_scope);
+	}
+}
+
+Loop::Loop(Node* expr, Scope* scope)
+	:_expression(expr)
+	, _scope(scope)
+{}
+
+void Loop::accept(NodeVisitor& visitor)
+{
+	visitor.visit(this);
+}
+
+Node* Loop::get_expression() const
+{
+	return _expression;
+}

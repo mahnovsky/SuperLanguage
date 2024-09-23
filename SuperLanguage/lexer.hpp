@@ -7,6 +7,8 @@
 
 #include <variant>
 
+#include "number.hpp"
+
 enum TokType : uint32_t
 {
 	TT_Let = 1 << 1,
@@ -48,7 +50,26 @@ enum TokType : uint32_t
 	TT_Loop = 1 << 28
 };
 
-using ObjectPtr = std::shared_ptr<Object>;
+struct StackObject
+{
+	static constexpr uint32_t magic_number = 0xFFFAAFFF;
+
+	struct NumberBox
+	{
+		uint32_t x = sizeof(Number);//magic_number;
+		Number number;
+	};
+
+	union Value
+	{
+		ObjectPtr ptr; // 16 byte
+		NumberBox box;
+	};
+
+
+
+	Value val;
+};
 
 struct Token
 {

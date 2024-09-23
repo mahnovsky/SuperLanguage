@@ -52,6 +52,10 @@ private:
 
 	void visit(Return* node) override;
 
+	void visit(BranchIfElse* node) override;
+
+	void visit(Loop* node) override;
+
 	void eval_plus();
 
 	void eval_minus();
@@ -106,9 +110,27 @@ private:
 		{
 			if (const auto left_num = pop_stack_number())
 			{
-				const auto res = left_num->do_op<Op>(*right_num);
+				const auto res = left_num->perform_op<Op>(*right_num);
 
 				_stack.emplace_back(res.as_object());
+
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	template <class Op>
+	bool perform_bool_op()
+	{
+		if (const auto right_num = pop_stack_number())
+		{
+			if (const auto left_num = pop_stack_number())
+			{
+				const auto res = left_num->perform_bool_op<Op>(*right_num);
+
+				_stack.emplace_back(std::make_shared<Bool>(res));
 
 				return true;
 			}

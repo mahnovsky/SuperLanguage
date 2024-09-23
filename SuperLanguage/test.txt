@@ -42,4 +42,26 @@ let test = x * y / 9;
 	}
 }
 
-#let miha = 1 > 4;
+
+fn recursion_test(miha)
+{
+	if(miha > 0)
+	{
+		__print("miha val: ", miha);
+
+		recursion_test(miha - 1);
+	}
+	else
+	{
+		__print("recursion end");
+	}
+}
+
+recursion_test(5);
+// let arr = [1, 2, 3];
+let counter = 0;
+while(counter < 12)
+{
+	__print("Iteration: ", counter);
+	counter = counter + 1;
+}

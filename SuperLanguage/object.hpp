@@ -31,6 +31,8 @@ public:
 	}
 };
 
+using ObjectPtr = std::shared_ptr<Object>;
+
 class Integer : public Object
 {
 public:

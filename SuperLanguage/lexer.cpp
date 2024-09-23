@@ -9,17 +9,12 @@
 #include "log.hpp"
 
 
-enum LexerExpect : uint32_t
-{
-	LE_Begin = TT_Let | TT_Id | TT_ScopeBegin | TT_Fn | TT_Ret,
-	LE_Test
-};
 
 namespace expects {
 	constexpr uint32_t LITERALS = TT_NumberLiteral | TT_StringLiteral | TT_BoolLiteral;
 	constexpr uint32_t LET = TT_Id;
-	constexpr uint32_t SCOPE_BEGIN = TT_Let | TT_Id | TT_ScopeBegin | TT_Fn | TT_Ret | TT_If;
-	constexpr uint32_t SCOPE_END = TT_Let | TT_Id | TT_ScopeBegin | TT_Fn | TT_Ret | TT_If | TT_ScopeBegin;
+	constexpr uint32_t SCOPE_BEGIN = TT_Let | TT_Id | TT_ScopeBegin | TT_Fn | TT_Ret | TT_If | TT_Loop;
+	constexpr uint32_t SCOPE_END = TT_Let | TT_Id | TT_ScopeBegin | TT_Fn | TT_Ret | TT_If | TT_Else | TT_Loop;
 	//TT_Id | TT_NumberLiteral | TT_LParen | TT_Fn | TT_StringLiteral;
 	constexpr uint32_t ASSIGN = TT_Id | TT_LParen | TT_Fn | LITERALS;
 	constexpr uint32_t ID = TT_Assign | TT_Operation | TT_Semicolon | TT_LParen | TT_Coma | TT_RParen;
@@ -39,6 +34,7 @@ namespace expects {
 	constexpr uint32_t OR = TT_Id | LITERALS;
 	constexpr uint32_t GREATER = TT_Id | TT_NumberLiteral;
 	constexpr uint32_t LESS = TT_Id | TT_NumberLiteral;
+	constexpr uint32_t SEMICOLON = TT_ScopeEnd | TT_Let | TT_Id;
 }
 
 using CharTokenInfo = std::tuple< char, uint32_t>;
@@ -199,7 +195,7 @@ void Lexer::process_line()
 		++_current;
 	}
 
-	uint32_t expect = TT_Let | TT_Id | TT_ScopeBegin | TT_Fn | TT_Ret | TT_ScopeEnd;
+	uint32_t expect = TT_Let | TT_Id | TT_ScopeBegin | TT_Fn | TT_Ret | TT_ScopeEnd | TT_If | TT_Else | TT_Loop;
 
 	struct ScopeEnd
 	{
@@ -383,6 +379,12 @@ bool Lexer::try_put_operation()
 	{
 		_tokens.emplace_back(op.value());
 		eat_current();
+		/*
+		const auto prev_token = _tokens.back();
+		if (op.value() == TT_Equal && prev_token.type == TT_Greater || prev_token.type == TT_Less || prev_token.type == TT_Equal)
+		{
+			eat('=');
+		}*/
 		return true;
 	}
 

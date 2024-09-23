@@ -41,6 +41,13 @@ void init_internal_functions(Interpreter* interp)
 					res += std::to_string(fval);
 					continue;
 				}
+
+				bool bval;
+				if (obj->get(&bval))
+				{
+					res += (bval ? "true" : "false");
+					continue;
+				}
 			}
 
 			puts(res.c_str());
@@ -74,11 +81,6 @@ void init_internal_functions(Interpreter* interp)
 
 int main(int argc, char** argv)
 {
-	Number a{ 11 };
-	Number b{ 22.3f };
-
-	Number res = a.do_op<PlusOp>(b);
-
 	if (argc <= 1)
 	{
 		std::cerr << "Invalid args, script file name missing\n";

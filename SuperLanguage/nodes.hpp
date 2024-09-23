@@ -252,6 +252,39 @@ private:
 	Node* _expression;
 };
 
+class BranchIfElse : public Node
+{
+public:
+	BranchIfElse(Node* expression, Scope* scope, Scope* else_scope);
+
+	void accept(NodeVisitor& visitor) override;
+
+	Node* get_expression() const;
+
+	void execute(NodeVisitor& visitor, bool main_branch);
+
+private:
+	Node* _expression;
+	Scope* _scope;
+	Scope* _else_scope;
+};
+
+class Loop : public Node
+{
+public:
+	Loop(Node* expr, Scope* scope);
+
+	void accept(NodeVisitor& visitor) override;
+
+	Node* get_expression() const;
+
+	Scope* get_scope() const { return _scope; }
+
+private:
+	Node* _expression;
+	Scope* _scope;
+};
+
 class NodeVisitor
 {
 public:
@@ -267,6 +300,8 @@ public:
 	virtual void visit(InternalFunction* node) = 0;
 	virtual void visit(Call* node) = 0;
 	virtual void visit(Return* node) = 0;
+	virtual void visit(BranchIfElse* node) = 0;
+	virtual void visit(Loop* node) = 0;
  };
 
 

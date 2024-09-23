@@ -45,6 +45,7 @@ std::vector<Node*> Parser::statementList()
 	{
 		if(_current->type == TT_ScopeEnd)
 		{
+			_skip_semicolon = false;
 			break;
 		}
 
@@ -159,6 +160,34 @@ Node* Parser::statement()
 		return new Return(expression());
 	}
 
+	if(_current->type == TT_If)
+	{
+		eat(TT_If);
+		eat(TT_LParen);
+		Node* expr = expression();
+		eat(TT_RParen);
+		const auto scope = dynamic_cast<Scope*>(statement());
+		Scope* else_branch = nullptr;
+		if(_current != _tokens.end() && _current->type == TT_Else)
+		{
+			eat(TT_Else);
+			_skip_semicolon = false;
+			else_branch = dynamic_cast<Scope*>(statement());
+		}
+
+		return new BranchIfElse(expr, scope, else_branch);
+	}
+
+	if(_current->type == TT_Loop)
+	{
+		eat(TT_Loop);
+		eat(TT_LParen);
+		Node* expr = expression();
+		eat(TT_RParen);
+		const auto scope = dynamic_cast<Scope*>(statement());
+		return new Loop(expr, scope);
+	}
+
 	return nullptr;
 }
 
@@ -190,9 +219,9 @@ Node* Parser::expression()
 
 Node* Parser::bool_expression()
 {
-	auto node = term();
+	auto node = bool_term();
 
-	while (_current->type == TT_Plus || _current->type == TT_Minus)
+	while (_current->type == TT_And || _current->type == TT_Or)
 	{
 		const auto op = _current->type == TT_Plus ? Operation::Plus : Operation::Minus;
 		eat(_current->type);
@@ -285,9 +314,9 @@ Node* Parser::bool_term()
 {
 	auto node = factor();
 
-	while (_current->type == TT_Equal || _current->type == TT_Greater || _current->type == TT_Less)
+	if (_current->type == TT_Equal || _current->type == TT_Greater || _current->type == TT_Less)
 	{
-		auto prev_type = _current->type;
+		const auto prev_type = _current->type;
 		eat(_current->type);
 
 		Operation op = Operation::Equal;
@@ -303,10 +332,12 @@ Node* Parser::bool_term()
 		if(_current->type == TT_Equal && prev_type == TT_Greater)
 		{
 			op = Operation::EqualGreater;
+			eat(_current->type);
 		}
 		if (_current->type == TT_Equal && prev_type == TT_Less)
 		{
 			op = Operation::EqualLess;
+			eat(_current->type);
 		}
 
 		node = new BinaryOperation(node, factor(), op);
@@ -439,6 +470,11 @@ Parser::TypeContext Parser::get_expression_context() const
 	TypeContext context = TypeContext::None;
 	while (it != _tokens.end() && it->type != TT_Semicolon && it->type != TT_Coma)
 	{
+		if(it->type == TT_ScopeBegin)
+		{
+			return context;
+		}
+
 		if(it->type == TT_Equal || it->type == TT_Greater || it->type == TT_Less)
 		{
 			return TypeContext::Bool;
