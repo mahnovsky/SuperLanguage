@@ -207,7 +207,10 @@ Node* Parser::expression()
 	{
 		return bool_expression();
 	}
-
+	if(_current_context == TypeContext::Array)
+	{
+		return array_expression();
+	}
 	if(_current->type == TT_Id)
 	{
 		return resolve_id();
@@ -257,6 +260,55 @@ Node* Parser::string_expression()
 	return node;
 }
 
+Node* Parser::array_expression()
+{
+	if (_current->type == TT_ArrayBegin)
+	{
+		eat(TT_ArrayBegin);
+
+		std::vector<Node*> nodes;
+		Node* element = nullptr;
+		do
+		{
+			element = array_element();
+
+			nodes.emplace_back(element);
+
+			if (_current->type == TT_Coma)
+			{
+				eat(TT_Coma);
+			}
+		} while (_current->type != TT_ArrayEnd);
+
+		eat(TT_ArrayEnd);
+
+		return new ArrayNode(std::move(nodes));
+	}
+
+	if(_current->type == TT_Id)
+	{
+		return resolve_id();
+	}
+
+	return nullptr;
+}
+
+Node* Parser::array_element()
+{
+	if (_current->type == TT_Id)
+	{
+		return resolve_id();
+	}
+	if((_current->type & (TT_StringLiteral | TT_BoolLiteral | TT_NumberLiteral)) > 0)
+	{
+		const ObjectPtr f = _current->object;
+		eat(_current->type);
+		return new StackValue(f);
+	}
+
+	return nullptr;
+}
+
 Node* Parser::string_factor()
 {
 	if (_current->type == TT_Id)
@@ -267,7 +319,7 @@ Node* Parser::string_factor()
 	{
 		ObjectPtr f = _current->object;
 		eat(TT_StringLiteral);
-		return new Literal(f);
+		return new StackValue(f);
 	}
 
 	return nullptr;
@@ -279,7 +331,7 @@ Node* Parser::factor()
 	{
 		ObjectPtr f = _current->object;
 		eat(TT_BoolLiteral);
-		return new Literal(f);
+		return new StackValue(f);
 	}
 	if(_current->type == TT_LParen)
 	{
@@ -296,7 +348,7 @@ Node* Parser::factor()
 	{
 		ObjectPtr f = _current->object;
 		eat(TT_NumberLiteral);
-		return new NumberLiteral(f);
+		return new StackValue(f);
 	}
 	
 	return nullptr;
@@ -489,6 +541,11 @@ Parser::TypeContext Parser::get_expression_context() const
 		if(it->type == TT_Mul || it->type == TT_Div || it->type == TT_Minus)
 		{
 			return TypeContext::Number;
+		}
+
+		if(it->type == TT_ArrayBegin || it->type == TT_ArrayEnd)
+		{
+			return TypeContext::Array;
 		}
 
 		if(it->type == TT_Plus)

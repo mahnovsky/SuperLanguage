@@ -11,7 +11,8 @@ public:
 		None,
 		Number,
 		String,
-		Bool
+		Bool,
+		Array
 	};
 
 	Parser(std::vector<Token>&& tokens);
@@ -34,6 +35,10 @@ private:
 	Node* number_expression();
 
 	Node* string_expression();
+
+	Node* array_expression();
+
+	Node* array_element();
 
 	Node* string_factor();
 

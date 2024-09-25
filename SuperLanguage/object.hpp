@@ -3,21 +3,27 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 class Node;
 class Scope;
 class Function;
+class Object;
+using ObjectPtr = std::shared_ptr<Object>;
 
 class Object : public std::enable_shared_from_this<Object>
 {
 public:
 	virtual ~Object() = default;
+
+
 	virtual bool get(int* val) const { return false; }
 	virtual bool get(float* val) const { return false; }
 	virtual bool get(bool* val) const { return false; }
 	virtual bool get(std::string* val) const { return false; }
 	virtual bool get(Scope** val) const { return false; }
 	virtual bool get(Function** val) const { return false; }
+	virtual bool get(std::vector<ObjectPtr>** val) { return false; }
 
 	template <class T>
 	std::optional<T> get_inner() const
@@ -31,7 +37,7 @@ public:
 	}
 };
 
-using ObjectPtr = std::shared_ptr<Object>;
+
 
 class Integer : public Object
 {
@@ -96,4 +102,17 @@ public:
 
 private:
 	Scope* _value;
+};
+
+class ArrayObj : public Object
+{
+public:
+	ArrayObj(std::vector<ObjectPtr> objects)
+		:_value(std::move(objects))
+	{}
+
+	bool get(std::vector<ObjectPtr>** val) override { (*val) = &_value; return true; }
+
+private:
+	std::vector<ObjectPtr> _value;
 };

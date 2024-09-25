@@ -66,7 +66,7 @@ void init_internal_functions(Interpreter* interp)
 
 	interp->add_internal_function(new InternalFunction("__exit", [](Interpreter* interp, Scope* s)
 		{
-			auto vars = s->get_variables();
+			const auto vars = s->get_variables();
 			if (vars.size() == 1)
 			{
 				auto obj = interp->get_stack_variable(vars.back());
@@ -74,6 +74,74 @@ void init_internal_functions(Interpreter* interp)
 				if (obj->get(&res))
 				{
 					exit(res);
+				}
+			}
+		}));
+
+	interp->add_internal_function(new InternalFunction("__get_array_element", [](Interpreter* interp, Scope* s)
+		{
+			const auto vars = s->get_variables();
+			if (vars.size() == 2)
+			{
+				const auto array_obj = interp->get_stack_variable(vars.front());
+				const auto index_obj = interp->get_stack_variable(vars.back());
+
+				int index = 0;
+				std::vector<ObjectPtr>* arr;
+				if (array_obj->get(&arr) && index_obj->get(&index))
+				{
+					interp->put_on_stack(arr->at(index));
+				}
+			}
+		}));
+
+	interp->add_internal_function(new InternalFunction("__set_array_element", [](Interpreter* interp, Scope* s)
+		{
+			const auto vars = s->get_variables();
+			if (vars.size() == 3)
+			{
+				const auto array_obj = interp->get_stack_variable(vars.front());
+				const auto index_obj = interp->get_stack_variable(vars[1]);
+				const auto obj = interp->get_stack_variable(vars.back());
+
+				int index = 0;
+				std::vector<ObjectPtr>* arr;
+				if (array_obj->get(&arr) && index_obj->get(&index) && obj)
+				{
+					if (arr->size() > index) 
+					{
+						(*arr)[index] = obj;
+					}
+				}
+			}
+		}));
+
+	interp->add_internal_function(new InternalFunction("__get_array_size", [](Interpreter* interp, Scope* s)
+		{
+			const auto vars = s->get_variables();
+			if (vars.size() == 1)
+			{
+				const auto array_obj = interp->get_stack_variable(vars.front());
+				
+				std::vector<ObjectPtr>* arr;
+				if (array_obj->get(&arr))
+				{
+					interp->put_on_stack(std::make_shared<Integer>(arr->size()));
+				}
+			}
+		}));
+
+	interp->add_internal_function(new InternalFunction("__array_append", [](Interpreter* interp, Scope* s)
+		{
+			const auto vars = s->get_variables();
+			if (vars.size() == 2)
+			{
+				const auto array_obj = interp->get_stack_variable(vars.front());
+				const auto obj = interp->get_stack_variable(vars.back());
+				std::vector<ObjectPtr>* arr;
+				if (array_obj->get(&arr) && obj)
+				{
+					arr->emplace_back(obj);
 				}
 			}
 		}));

@@ -30,6 +30,11 @@ ObjectPtr Interpreter::get_stack_variable(size_t index) const
 	return {};
 }
 
+void Interpreter::put_on_stack(ObjectPtr obj)
+{
+	_stack.emplace_back(obj);
+}
+
 size_t Interpreter::get_stack_size() const
 {
 	return _stack.size();
@@ -86,11 +91,6 @@ void Interpreter::visit(BinaryOperation* node)
 	}
 }
 
-void Interpreter::visit(NumberLiteral* node)
-{
-	_stack.emplace_back(node->get_number());
-}
-
 void Interpreter::visit(Variable* node)
 {
 	const auto index = get_absolute_address(node->get_stack_index());
@@ -130,9 +130,30 @@ void Interpreter::visit(Assign* node)
 	}
 }
 
-void Interpreter::visit(Literal* node)
+void Interpreter::visit(StackValue* node)
 {
 	_stack.emplace_back(node->get_object());
+}
+
+void Interpreter::visit(ArrayNode* node)
+{
+	const auto& array_nodes = node->get_array_nodes();
+
+	std::vector<ObjectPtr> array_objects;
+	for(const auto& node : array_nodes)
+	{
+		const auto stack_size = _stack.size();
+
+		node->accept(*this);
+
+		if(stack_size < _stack.size())
+		{
+			array_objects.emplace_back(_stack.back());
+			_stack.pop_back();
+		}
+	}
+
+	_stack.emplace_back(std::make_shared<ArrayObj>(array_objects));
 }
 
 void Interpreter::visit(Function* node)
@@ -230,6 +251,10 @@ void Interpreter::visit(Loop* node)
 		expr->accept(*this);
 		if (pop_stack(value))
 		{
+			if (!value)
+			{
+				break;
+			}
 			scope->accept(*this);
 		}
 		else

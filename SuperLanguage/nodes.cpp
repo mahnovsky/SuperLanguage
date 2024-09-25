@@ -7,11 +7,6 @@ void BinaryOperation::accept(NodeVisitor& visitor)
 	visitor.visit(this);
 }
 
-void NumberLiteral::accept(NodeVisitor& visitor)
-{
-	visitor.visit(this);
-}
-
 Scope::Scope(std::vector<Node*>&& nodes)
 	:_nodes(std::move(nodes))
 {
@@ -88,7 +83,7 @@ void Call::accept(NodeVisitor& visitor)
 	visitor.visit(this);
 }
 
-void Literal::accept(NodeVisitor& visitor)
+void StackValue::accept(NodeVisitor& visitor)
 {
 	visitor.visit(this);
 }
@@ -195,4 +190,15 @@ void Loop::accept(NodeVisitor& visitor)
 Node* Loop::get_expression() const
 {
 	return _expression;
+}
+
+ArrayNode::ArrayNode(std::vector<Node*> array_nodes)
+	:_array_nodes(std::move(array_nodes))
+{
+	
+}
+
+void ArrayNode::accept(NodeVisitor& visitor)
+{
+	visitor.visit(this);
 }

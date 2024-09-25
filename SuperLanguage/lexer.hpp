@@ -47,7 +47,9 @@ enum TokType : uint32_t
 
 	TT_If = 1 << 26,
 	TT_Else = 1 << 27,
-	TT_Loop = 1 << 28
+	TT_Loop = 1 << 28,
+	TT_ArrayBegin = 1 << 29,
+	TT_ArrayEnd = 1 << 30
 };
 
 struct StackObject

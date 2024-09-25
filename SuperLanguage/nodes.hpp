@@ -89,21 +89,6 @@ private:
 	std::vector<Node*> _nodes;
 };
 
-class NumberLiteral : public Node
-{
-public:
-	NumberLiteral(ObjectPtr n)
-		:_number(std::move(n))
-	{}
-
-	void accept(NodeVisitor& visitor) override;
-
-	ObjectPtr get_number() const { return _number; }
-
-private:
-	ObjectPtr _number;
-};
-
 class Variable : public Node
 {
 public:
@@ -148,10 +133,10 @@ private:
 	bool _declaration;
 };
 
-class Literal : public Node
+class StackValue : public Node
 {
 public:
-	Literal(ObjectPtr val)
+	StackValue(ObjectPtr val)
 		:_value(std::move(val))
 	{}
 
@@ -285,6 +270,19 @@ private:
 	Scope* _scope;
 };
 
+class ArrayNode : public Node
+{
+public:
+	ArrayNode(std::vector<Node*> array_nodes);
+
+	void accept(NodeVisitor& visitor) override;
+
+	const std::vector<Node*>& get_array_nodes() const { return _array_nodes; }
+
+private:
+	std::vector<Node*> _array_nodes;
+};
+
 class NodeVisitor
 {
 public:
@@ -292,10 +290,10 @@ public:
 
 	virtual void visit(Scope* node) = 0;
 	virtual void visit(BinaryOperation* node) = 0;
-	virtual void visit(NumberLiteral* node) = 0;
 	virtual void visit(Assign* node) = 0;
 	virtual void visit(Variable* node) = 0;
-	virtual void visit(Literal* node) = 0;
+	virtual void visit(StackValue* node) = 0;
+	virtual void visit(ArrayNode* node) = 0;
 	virtual void visit(Function* node) = 0;
 	virtual void visit(InternalFunction* node) = 0;
 	virtual void visit(Call* node) = 0;

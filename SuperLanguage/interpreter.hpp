@@ -19,6 +19,8 @@ public:
 
 	ObjectPtr get_stack_variable(size_t index) const;
 
+	void put_on_stack(ObjectPtr obj);
+
 	size_t get_stack_size() const;
 
 	void add_internal_function(InternalFunction* func);
@@ -36,13 +38,13 @@ private:
 
 	void visit(BinaryOperation* node) override;
 
-	void visit(NumberLiteral* node) override;
-
 	void visit(Variable* node) override;
 
 	void visit(Assign* node) override;
 
-	void visit(Literal* node) override;
+	void visit(StackValue* node) override;
+
+	void visit(ArrayNode* node) override;
 
 	void visit(Function* node) override;
 

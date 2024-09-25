@@ -16,16 +16,16 @@ namespace expects {
 	constexpr uint32_t SCOPE_BEGIN = TT_Let | TT_Id | TT_ScopeBegin | TT_Fn | TT_Ret | TT_If | TT_Loop;
 	constexpr uint32_t SCOPE_END = TT_Let | TT_Id | TT_ScopeBegin | TT_Fn | TT_Ret | TT_If | TT_Else | TT_Loop;
 	//TT_Id | TT_NumberLiteral | TT_LParen | TT_Fn | TT_StringLiteral;
-	constexpr uint32_t ASSIGN = TT_Id | TT_LParen | TT_Fn | LITERALS;
+	constexpr uint32_t ASSIGN = TT_Id | TT_LParen | TT_Fn | LITERALS | TT_ArrayBegin;
 	constexpr uint32_t ID = TT_Assign | TT_Operation | TT_Semicolon | TT_LParen | TT_Coma | TT_RParen;
 	constexpr uint32_t LPAREN = TT_Id | LITERALS | TT_LParen | TT_RParen;
 	constexpr uint32_t RPAREN = TT_LParen | TT_RParen | TT_Operation | TT_ScopeBegin | TT_Semicolon;
 	constexpr uint32_t COMA = TT_Id | LITERALS;
 	constexpr uint32_t FN = TT_LParen | TT_NumberLiteral | TT_StringLiteral | TT_Id | TT_Ret;
 	constexpr uint32_t RETURN = TT_LParen | TT_NumberLiteral | TT_StringLiteral | TT_Id;
-	constexpr uint32_t NUMBER_LITERAL = TT_Operation | TT_Semicolon | TT_RParen | TT_Coma;
-	constexpr uint32_t STRING_LITERAL = TT_Operation | TT_Semicolon | TT_RParen | TT_Coma;
-	constexpr uint32_t BOOL_LITERAL = TT_Operation | TT_Semicolon | TT_RParen | TT_Coma;
+	constexpr uint32_t NUMBER_LITERAL = TT_Operation | TT_Semicolon | TT_RParen | TT_Coma | TT_ArrayEnd;
+	constexpr uint32_t STRING_LITERAL = TT_Operation | TT_Semicolon | TT_RParen | TT_Coma | TT_ArrayEnd;
+	constexpr uint32_t BOOL_LITERAL = TT_Operation | TT_Semicolon | TT_RParen | TT_Coma | TT_ArrayEnd;
 	constexpr uint32_t OPERATION = TT_Id | TT_NumberLiteral | TT_LParen | TT_StringLiteral;
 	constexpr uint32_t IF = TT_LParen;
 	constexpr uint32_t ELSE = TT_ScopeBegin;
@@ -35,6 +35,7 @@ namespace expects {
 	constexpr uint32_t GREATER = TT_Id | TT_NumberLiteral;
 	constexpr uint32_t LESS = TT_Id | TT_NumberLiteral;
 	constexpr uint32_t SEMICOLON = TT_ScopeEnd | TT_Let | TT_Id;
+	constexpr uint32_t ARRAY_BEGIN = TT_Id | LITERALS;
 }
 
 using CharTokenInfo = std::tuple< char, uint32_t>;
@@ -46,6 +47,8 @@ std::map<uint32_t, CharTokenInfo> char_map = {
 	{ TT_Assign, { '=', expects::ASSIGN} },
 	{ TT_Coma, { ',', expects::COMA} },
 	{ TT_Semicolon, { ';', 0 } },
+	{ TT_ArrayBegin, { '[', expects::ARRAY_BEGIN } },
+	{ TT_ArrayEnd, { ']', TT_Semicolon } }
 };
 
 using TokenInfo = std::tuple< std::string_view, uint32_t>;
@@ -202,6 +205,9 @@ void Lexer::process_line()
 		ScopeEnd(Lexer* l)
 			:lexer(l)
 		{}
+
+		ScopeEnd(const ScopeEnd&) = delete;
+		ScopeEnd(ScopeEnd&&) = delete;
 
 		~ScopeEnd()
 		{
@@ -496,7 +502,7 @@ bool Lexer::find_keyword(uint32_t& expect)
 
 bool Lexer::find_char(uint32_t& expect)
 {
-	constexpr uint32_t char_tokens[] = { TT_ScopeBegin, TT_ScopeEnd, TT_Assign, TT_LParen, TT_RParen, TT_Coma };
+	constexpr uint32_t char_tokens[] = { TT_ScopeBegin, TT_ScopeEnd, TT_Assign, TT_LParen, TT_RParen, TT_Coma, TT_ArrayBegin, TT_ArrayEnd };
 	for (uint32_t token : char_tokens)
 	{
 		if ((expect & token) && try_put_token(static_cast<TokType>(token)))
