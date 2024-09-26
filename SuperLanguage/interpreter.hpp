@@ -32,6 +32,11 @@ public:
 		return _call_stack;
 	}
 
+	void set_return_value(ObjectPtr return_value)
+	{
+		_return_value = return_value;
+	}
+
 private:
 
 	void visit(Scope* node) override;

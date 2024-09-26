@@ -158,8 +158,7 @@ public:
 
 	void accept(NodeVisitor& visitor) override;
 
-	const std::string& get_name() const
-	{
+	const std::string& get_name() const{
 		return _name;
 	}
 

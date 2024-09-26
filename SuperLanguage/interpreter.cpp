@@ -196,7 +196,7 @@ void Interpreter::visit(Call* node)
 
 		if(_return_value)
 		{
-			const auto ret_index = _stack.size();
+			constexpr auto ret_index = 0;
 			allocate_stack_variable(ret_index);
 			set_stack_variable(ret_index, std::move(_return_value));
 		}

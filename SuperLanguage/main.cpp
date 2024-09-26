@@ -90,7 +90,7 @@ void init_internal_functions(Interpreter* interp)
 				std::vector<ObjectPtr>* arr;
 				if (array_obj->get(&arr) && index_obj->get(&index))
 				{
-					interp->put_on_stack(arr->at(index));
+					interp->set_return_value(arr->at(index));
 				}
 			}
 		}));
@@ -126,7 +126,7 @@ void init_internal_functions(Interpreter* interp)
 				std::vector<ObjectPtr>* arr;
 				if (array_obj->get(&arr))
 				{
-					interp->put_on_stack(std::make_shared<Integer>(arr->size()));
+					interp->set_return_value(std::make_shared<Integer>(arr->size()));
 				}
 			}
 		}));
