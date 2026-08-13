@@ -65,5 +65,11 @@
     <ClInclude Include="number.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="new_ast.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="hive.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

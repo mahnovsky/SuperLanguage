@@ -75,8 +75,6 @@ public:
 
 	size_t get_variable_count() const;
 
-	size_t apply_index_offset(size_t index) const;
-
 	void set_variable_count(size_t var_count);
 
 	std::vector<size_t> get_variables() const;

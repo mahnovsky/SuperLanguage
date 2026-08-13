@@ -4,7 +4,7 @@
 
 Interpreter::Interpreter(Node* scope)
 	:_root_scope(scope)
-	,_current_scope(dynamic_cast<Scope*>(scope))
+	, _current_scope(dynamic_cast<Scope*>(scope))
 {}
 
 Interpreter::~Interpreter()
@@ -22,7 +22,7 @@ void Interpreter::run()
 
 ObjectPtr Interpreter::get_stack_variable(size_t index) const
 {
-	if(index < _stack.size())
+	if (index < _stack.size())
 	{
 		return _stack[index];
 	}
@@ -95,7 +95,7 @@ void Interpreter::visit(Variable* node)
 {
 	const auto index = get_absolute_address(node->get_stack_index());
 
-	if(index < _stack.size())
+	if (index < _stack.size())
 	{
 		_stack.emplace_back(_stack[index]);
 	}
@@ -107,7 +107,7 @@ void Interpreter::visit(Variable* node)
 
 void Interpreter::visit(Assign* node)
 {
-	if(auto scope = dynamic_cast<Scope*>(node->get_expression()))
+	if (auto scope = dynamic_cast<Scope*>(node->get_expression()))
 	{
 		_stack.push_back(std::make_shared<Callable>(scope));
 	}
@@ -140,13 +140,13 @@ void Interpreter::visit(ArrayNode* node)
 	const auto& array_nodes = node->get_array_nodes();
 
 	std::vector<ObjectPtr> array_objects;
-	for(const auto& node : array_nodes)
+	for (const auto& node : array_nodes)
 	{
 		const auto stack_size = _stack.size();
 
 		node->accept(*this);
 
-		if(stack_size < _stack.size())
+		if (stack_size < _stack.size())
 		{
 			array_objects.emplace_back(_stack.back());
 			_stack.pop_back();
@@ -159,7 +159,7 @@ void Interpreter::visit(ArrayNode* node)
 void Interpreter::visit(Function* node)
 {
 	const auto& name = node->get_name();
-	if(_functions.find(name) == _functions.end())
+	if (_functions.find(name) == _functions.end())
 	{
 		_functions[name] = node;
 	}
@@ -172,16 +172,16 @@ void Interpreter::visit(InternalFunction* node)
 
 void Interpreter::visit(Call* node)
 {
-	if(const auto func = get_function(node))
+	if (const auto func = get_function(node))
 	{
 		LOG_INFO("Call function {}", func->get_name());
-		
+
 		const auto base_index = _stack.size();
 		const auto fn_scope = func->get_scope();
 		fn_scope->reset();
 		const auto& args = node->get_args();
 		LOG_INFO("Function args begin");
-		for(const auto arg : args)
+		for (const auto arg : args)
 		{
 			const auto prev_size = _stack.size();
 			arg->accept(*this);
@@ -194,7 +194,7 @@ void Interpreter::visit(Call* node)
 		_call_stack.emplace_back(func->get_name(), base_index);
 		func->run(this, base_index);
 
-		if(_return_value)
+		if (_return_value)
 		{
 			constexpr auto ret_index = 0;
 			allocate_stack_variable(ret_index);
@@ -208,12 +208,12 @@ void Interpreter::visit(Call* node)
 
 void Interpreter::visit(Return* node)
 {
-	if(const auto expr = node->get_expression())
+	if (const auto expr = node->get_expression())
 	{
 		const auto prev_size = _stack.size();
 		expr->accept(*this);
 
-		if(_stack.size() > prev_size)
+		if (_stack.size() > prev_size)
 		{
 			_return_value = _stack.back();
 			_stack.pop_back();
@@ -225,7 +225,7 @@ void Interpreter::visit(BranchIfElse* node)
 {
 	node->get_expression()->accept(*this);
 	bool value;
-	if(pop_stack(value))
+	if (pop_stack(value))
 	{
 		node->execute(*this, value);
 	}
@@ -262,13 +262,12 @@ void Interpreter::visit(Loop* node)
 			LOG_ERROR("Failed to execute loop statement, bool value expected");
 			break;
 		}
-	}
-	while (value);
+	} while (value);
 }
 
 void Interpreter::eval_plus()
 {
-	if (!try_perform_op<PlusOp>()) 
+	if (!try_perform_op<PlusOp>())
 	{
 		std::string rvalue;
 		std::string lvalue;
@@ -285,7 +284,7 @@ void Interpreter::eval_plus()
 
 void Interpreter::eval_minus()
 {
-	if(!try_perform_op<MinusOp>())
+	if (!try_perform_op<MinusOp>())
 	{
 		LOG_ERROR("Failed to perform minus operation");
 	}
@@ -303,7 +302,7 @@ void Interpreter::eval_div()
 {
 	if (!try_perform_op<DivOp>())
 	{
-		LOG_ERROR("Failed to perform mul operation");
+		LOG_ERROR("Failed to perform div operation");
 	}
 }
 
@@ -347,12 +346,12 @@ std::string Interpreter::print_value(ObjectPtr value) const
 	}
 
 	std::string s;
-	if(value->get(&s))
+	if (value->get(&s))
 	{
 		return std::format("value: {}", s);
 	}
 	bool bval;
-	if(value->get(&bval))
+	if (value->get(&bval))
 	{
 		return std::format("value: {}", bval);
 	}
@@ -361,7 +360,7 @@ std::string Interpreter::print_value(ObjectPtr value) const
 
 size_t Interpreter::get_absolute_address(size_t index) const
 {
-	if(!_call_stack.empty())
+	if (!_call_stack.empty())
 	{
 		return _call_stack.back().second + index;
 	}
@@ -371,10 +370,10 @@ size_t Interpreter::get_absolute_address(size_t index) const
 void Interpreter::allocate_stack_variable(size_t index)
 {
 	index = get_absolute_address(index);
-	if(index >= _stack.size())
+	if (index >= _stack.size())
 	{
 		_stack.resize(index + 1);
-		
+
 		_current_scope->add_variable();
 
 		LOG_INFO("Allocate on stack {}", index);
@@ -396,7 +395,7 @@ bool Interpreter::set_stack_variable(size_t index, ObjectPtr object)
 
 Function* Interpreter::get_function(Call* node)
 {
-	const std::string name{node->get_function_name()};
+	const std::string name{ node->get_function_name() };
 	if (const auto it = _functions.find(name); it != _functions.end())
 	{
 		return it->second;

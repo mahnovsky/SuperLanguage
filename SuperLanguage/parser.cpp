@@ -519,6 +519,7 @@ Node* Parser::resolve_id()
 		eat(TT_RParen);
 		return new Call(std::move(args), std::move(name));
 	}
+
 	return var;
 }
 

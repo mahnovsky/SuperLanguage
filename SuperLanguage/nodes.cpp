@@ -41,11 +41,6 @@ size_t Scope::get_variable_count() const
 	return _variable_count;
 }
 
-size_t Scope::apply_index_offset(size_t index) const
-{
-	return _base_index + index;
-}
-
 void Scope::set_variable_count(size_t var_count)
 {
 	_variable_count = var_count;

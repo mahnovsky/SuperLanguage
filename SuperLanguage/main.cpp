@@ -10,44 +10,22 @@
 #include "interpreter.hpp"
 #include "log.hpp"
 #include "number.hpp"
+#include "hive.h"
+#include "new_ast.h"
 
 void init_internal_functions(Interpreter* interp)
 {
 	interp->add_internal_function(new InternalFunction("__print", [](Interpreter* interp, Scope* s)
 		{
 			std::string res = "--> ";
-			auto vars = s->get_variables();
-			for(auto v : vars)
+			const auto vars = s->get_variables();
+			
+			for(const auto v : vars)
 			{
-				auto obj = interp->get_stack_variable(v);
+				const auto obj = interp->get_stack_variable(v);
 
-				std::string str;
-				if(obj->get(&str))
-				{
-					res += str;
-					continue;
-				}
-
-				int ival;
-				if(obj->get(&ival))
-				{
-					res += std::to_string(ival);
-					continue;
-				}
-
-				float fval;
-				if (obj->get(&fval))
-				{
-					res += std::to_string(fval);
-					continue;
-				}
-
-				bool bval;
-				if (obj->get(&bval))
-				{
-					res += (bval ? "true" : "false");
-					continue;
-				}
+				res.append(obj->to_string());
+				//res.append(" ");
 			}
 
 			puts(res.c_str());
@@ -61,6 +39,16 @@ void init_internal_functions(Interpreter* interp)
 			{
 				putc('\t', stdout);
 				puts(key.c_str());
+			}
+		}));
+	interp->add_internal_function(new InternalFunction("__to_string", [](Interpreter* interp, Scope* s)
+		{
+			const auto vars = s->get_variables();
+			if (vars.size() == 1)
+			{
+				const auto obj = interp->get_stack_variable(vars.back());
+
+				interp->set_return_value(std::make_shared<String>(obj->to_string()));
 			}
 		}));
 
@@ -147,8 +135,36 @@ void init_internal_functions(Interpreter* interp)
 		}));
 }
 
+struct Foo
+{
+	static inline constexpr auto Index = new_ast::Node::Index::Variable;
+	std::string name;
+
+	Foo(const std::string& n)
+		: name(n)
+	{
+	}
+};
+
+void test_hive()
+{
+	new_ast::NodeDataStorage<Foo, std::string> storage;
+
+	const auto id = storage.add_data(Foo{ "test" });
+	const auto id1 = storage.add_data(std::string{ "string" });
+
+
+	const Foo* f = storage.get_data<Foo>(id);
+	std::cout << f->name << std::endl;
+	const std::string* s = storage.get_data<std::string>(id1);
+	std::cout << *s << std::endl;
+}
+
 int main(int argc, char** argv)
 {
+	test_hive();
+	return 0;
+
 	if (argc <= 1)
 	{
 		std::cerr << "Invalid args, script file name missing\n";

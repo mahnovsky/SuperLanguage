@@ -66,14 +66,7 @@ let c = 0;
 
 __print("array size: ", __get_array_size(arr));
 let end = __get_array_size(arr);
-while(c < end)
-{
-	let arr_element = __get_array_element(arr, c);
-
-	__print("Array element[", c, "] = ", arr_element);
-
-	c = c + 1;
-}
+__print("array: ", arr);
 
 let counter = 0;
 while(counter < 12)
@@ -88,3 +81,5 @@ if(boll)
 {
 	__print("yes");
 }
+let sy = __to_string(y);
+__print("y = ", sy);

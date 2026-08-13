@@ -25,6 +25,8 @@ public:
 	virtual bool get(Function** val) const { return false; }
 	virtual bool get(std::vector<ObjectPtr>** val) { return false; }
 
+	virtual std::string to_string() const = 0;
+
 	template <class T>
 	std::optional<T> get_inner() const
 	{
@@ -48,6 +50,11 @@ public:
 
 	bool get(int* val) const override { (*val) = _value; return true; }
 
+	std::string to_string() const override
+	{
+		return std::to_string(_value);
+	}
+
 private:
 	int _value;
 };
@@ -60,6 +67,11 @@ public:
 	{}
 
 	bool get(float* val) const override { (*val) = _value; return true; }
+
+	std::string to_string() const override
+	{
+		return std::to_string(_value);
+	}
 
 private:
 	float _value;
@@ -74,6 +86,11 @@ public:
 
 	bool get(bool* val) const override { (*val) = _value; return true; }
 
+	std::string to_string() const override
+	{
+		return _value ? "True" : "False";
+	}
+
 private:
 	bool _value;
 };
@@ -86,6 +103,11 @@ public:
 	{}
 
 	bool get(std::string * val) const override { (*val) = _value; return true; }
+
+	std::string to_string() const override
+	{
+		return _value;
+	}
 
 private:
 	std::string _value;
@@ -100,6 +122,11 @@ public:
 
 	bool get(Scope** val) const override;
 
+	std::string to_string() const override
+	{
+		return "Scope";
+	}
+
 private:
 	Scope* _value;
 };
@@ -112,6 +139,18 @@ public:
 	{}
 
 	bool get(std::vector<ObjectPtr>** val) override { (*val) = &_value; return true; }
+
+	std::string to_string() const override
+	{
+		std::string res;
+		for(const auto& obj : _value)
+		{
+			res.append(obj->to_string());
+			res.append(", ");
+		}
+
+		return res;
+	}
 
 private:
 	std::vector<ObjectPtr> _value;

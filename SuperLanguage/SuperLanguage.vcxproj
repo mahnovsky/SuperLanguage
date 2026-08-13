@@ -151,9 +151,11 @@
     <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="hive.h" />
     <ClInclude Include="interpreter.hpp" />
     <ClInclude Include="lexer.hpp" />
     <ClInclude Include="log.hpp" />
+    <ClInclude Include="new_ast.h" />
     <ClInclude Include="nodes.hpp" />
     <ClInclude Include="number.hpp" />
     <ClInclude Include="parser.hpp" />
