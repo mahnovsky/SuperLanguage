@@ -19,7 +19,7 @@ namespace hive {
 		std::uint16_t generation = 0;
 	};
 
-	template <typename T, size_t BucketSize = 128>
+	template <typename T, size_t BucketSize = 1024>
 	class Hive final
 	{
 	private:

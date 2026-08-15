@@ -5,15 +5,17 @@
 
 #include "log.hpp"
 #include "number.hpp"
+#include "new_ast.h"
+#include "node_data.h"
 
 
-class Interpreter final : public NodeVisitor
+class Interpreter final
 {
 public:
-	Interpreter(Node* scope);
+	Interpreter(new_ast::Node scope);
 	Interpreter(const Interpreter&) = delete;
 	Interpreter(Interpreter&&) = delete;
-	~Interpreter() override;
+	~Interpreter();
 
 	void run();
 
@@ -23,9 +25,9 @@ public:
 
 	size_t get_stack_size() const;
 
-	void add_internal_function(InternalFunction* func);
+	void add_internal_function(data::InternalFunction* func);
 
-	void run_once(Node* node);
+	void run_once(new_ast::Node node);
 
 	const std::vector<std::pair<std::string, size_t>>& get_call_stack() const
 	{
@@ -38,7 +40,7 @@ public:
 	}
 
 private:
-
+	/*
 	void visit(Scope* node) override;
 
 	void visit(BinaryOperation* node) override;
@@ -62,7 +64,7 @@ private:
 	void visit(BranchIfElse* node) override;
 
 	void visit(Loop* node) override;
-
+	*/
 	void eval_plus();
 
 	void eval_minus();
@@ -154,11 +156,11 @@ private:
 
 	bool set_stack_variable(size_t index, ObjectPtr object);
 
-	Function* get_function(Call* node);
+	data::Function* get_function(data::Call* node);
 private:
-	Node* _root_scope;
-	Scope* _current_scope;
-	std::map<std::string, Function*> _functions;
+	new_ast::Node _root_scope;
+	data::Scope* _current_scope;
+	std::map<std::string, new_ast::Node> _functions;
 	std::vector<ObjectPtr> _stack;
 	ObjectPtr _return_value;
 	std::vector<std::pair<std::string, size_t>> _call_stack;

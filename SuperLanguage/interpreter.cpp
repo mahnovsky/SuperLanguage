@@ -2,22 +2,18 @@
 #include "log.hpp"
 #include <cassert>
 
-Interpreter::Interpreter(Node* scope)
+Interpreter::Interpreter(new_ast::Node scope)
 	:_root_scope(scope)
-	, _current_scope(dynamic_cast<Scope*>(scope))
+	, _current_scope()
 {}
 
 Interpreter::~Interpreter()
 {
-	delete _root_scope;
+	//delete _root_scope;
 }
 
 void Interpreter::run()
 {
-	if (_root_scope)
-	{
-		_root_scope->accept(*this);
-	}
 }
 
 ObjectPtr Interpreter::get_stack_variable(size_t index) const
@@ -40,16 +36,16 @@ size_t Interpreter::get_stack_size() const
 	return _stack.size();
 }
 
-void Interpreter::add_internal_function(InternalFunction* func)
+void Interpreter::add_internal_function(data::InternalFunction* func)
 {
-	_functions[func->get_name()] = func;
+	//_functions[func->_name] = func;
 }
 
-void Interpreter::run_once(Node* node)
+void Interpreter::run_once(new_ast::Node node)
 {
-	node->accept(*this);
+	//node->accept(*this);
 }
-
+/*
 void Interpreter::visit(Scope* node)
 {
 	const auto parent_scope = _current_scope;
@@ -264,6 +260,7 @@ void Interpreter::visit(Loop* node)
 		}
 	} while (value);
 }
+*/
 
 void Interpreter::eval_plus()
 {
@@ -374,7 +371,7 @@ void Interpreter::allocate_stack_variable(size_t index)
 	{
 		_stack.resize(index + 1);
 
-		_current_scope->add_variable();
+		//_current_scope->add_variable();
 
 		LOG_INFO("Allocate on stack {}", index);
 	}
@@ -393,20 +390,20 @@ bool Interpreter::set_stack_variable(size_t index, ObjectPtr object)
 	return res;
 }
 
-Function* Interpreter::get_function(Call* node)
+data::Function* Interpreter::get_function(data::Call* node)
 {
-	const std::string name{ node->get_function_name() };
+	const std::string name{ node->_function_name };
 	if (const auto it = _functions.find(name); it != _functions.end())
 	{
-		return it->second;
+		//return it->second;
 	}
 	else
 	{
-		const auto index = get_absolute_address(node->get_var_index());
+		const auto index = get_absolute_address(node->_var_index);
 
 		if (_stack.size() < index)
 		{
-			Function* func = nullptr;
+			data::Function* func = nullptr;
 			if (_stack[index]->get(&func) && func)
 			{
 				return func;

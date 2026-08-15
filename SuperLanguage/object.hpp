@@ -5,9 +5,13 @@
 #include <string>
 #include <vector>
 
-class Node;
-class Scope;
-class Function;
+namespace data
+{
+	struct Scope;
+	struct Function;
+}
+
+
 class Object;
 using ObjectPtr = std::shared_ptr<Object>;
 
@@ -21,8 +25,8 @@ public:
 	virtual bool get(float* val) const { return false; }
 	virtual bool get(bool* val) const { return false; }
 	virtual bool get(std::string* val) const { return false; }
-	virtual bool get(Scope** val) const { return false; }
-	virtual bool get(Function** val) const { return false; }
+	virtual bool get(data::Scope** val) const { return false; }
+	virtual bool get(data::Function** val) const { return false; }
 	virtual bool get(std::vector<ObjectPtr>** val) { return false; }
 
 	virtual std::string to_string() const = 0;
@@ -38,8 +42,6 @@ public:
 		return {};
 	}
 };
-
-
 
 class Integer : public Object
 {
@@ -116,11 +118,11 @@ private:
 class Callable : public Object
 {
 public:
-	Callable(Scope* v)
+	Callable(data::Scope* v)
 		:_value(v)
 	{}
 
-	bool get(Scope** val) const override;
+	bool get(data::Scope** val) const override;
 
 	std::string to_string() const override
 	{
@@ -128,7 +130,7 @@ public:
 	}
 
 private:
-	Scope* _value;
+	data::Scope* _value;
 };
 
 class ArrayObj : public Object

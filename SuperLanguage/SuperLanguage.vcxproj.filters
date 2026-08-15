@@ -71,5 +71,11 @@
     <ClInclude Include="hive.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="arena.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="node_data.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

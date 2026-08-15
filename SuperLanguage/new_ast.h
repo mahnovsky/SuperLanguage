@@ -1,9 +1,10 @@
 #pragma once
 
-#include "hive.h"
+#include "arena.h"
 
 #include <cstdint>
 #include <functional>
+
 
 namespace new_ast
 {
@@ -29,12 +30,11 @@ namespace new_ast
 		};
 
 		Index index;
-		hive::Id data_id;
+		arena::Id data_id;
 
-		Node(Index _index)
-			:index(_index)
-		{
-		}
+		Node()
+			:index(Index::Size)
+		{}
 
 		static constexpr std::uint32_t get_nodes_count()
 		{
@@ -45,75 +45,51 @@ namespace new_ast
 		{
 			return static_cast<std::uint32_t>(index);
 		}
+
+		Node(Index _index, arena::Id id)
+			:index{ _index }
+			,data_id{id}
+		{
+		}
 	};
 
-	class NodeDataHolder
-	{
-	public:
-
-		NodeDataHolder() = default;
-		NodeDataHolder(const NodeDataHolder&) = delete;
-		NodeDataHolder(NodeDataHolder&&) = default;
-
-		~NodeDataHolder()
-		{
-			if (_destroy_fn && _hive_ptr) {
-				_destroy_fn(_hive_ptr);
-			}
-		}
-
-		bool is_initialized() const
-		{
-			return _hive_ptr != nullptr;
-		}
-
-		template <typename T>
-		void init()
-		{
-			_hive_ptr = new hive::Hive<T>{};
-			_destroy_fn = [](void* ptr) {
-				delete static_cast<hive::Hive<T>*>(ptr);
-				};
-		}
-
-		template <typename T>
-		hive::Hive<T>* get_hive()
-		{
-			return static_cast<hive::Hive<T>*>(_hive_ptr);
-		}
-
-	private:
-		void* _hive_ptr = nullptr;
-		std::function<void(void*)> _destroy_fn = {};
-	};
+	
 	template <typename ... Args>
 	class NodeDataStorage
 	{
 	public:
+		template <typename  T>
+		using Container = arena::Arena<T>;
+		using Id = arena::Id;
+
 		NodeDataStorage() = default;
 
-		template <class T>
-		hive::Id add_data(T&& data)
+		template <typename T, typename ... InArgs>
+		Node create_node(InArgs&& ... args)
 		{
-			auto& h = std::get<hive::Hive<T>>(_hives);
-			return h.emplace(data);
+			auto& h = std::get<Container<T>>(_hives);
+
+			const auto id = h.emplace(std::forward<InArgs>(args) ...);
+
+			return { T::_node_type, id };
 		}
 
 		template <class T>
-		const T* get_data(const hive::Id& id) const
+		const T* get_data(const Node& n) const
 		{
-			auto& h = std::get<hive::Hive<T>>(_hives);
-			return h.at(id);
+			assert(T::_node_type == n.index);
+			auto& h = std::get<Container<T>>(_hives);
+			return h.at(n.data_id);
 		}
 
 		template <class T>
-		T* get_data_mut(const hive::Id& id)
+		T* get_data_mut(const Node& n)
 		{
-			auto& h = std::get<hive::Hive<T>>(_hives);
-			return h.at(id);
+			assert(T::_node_type == n.index);
+			auto& h = std::get<Container<T>>(_hives);
+			return h.at(n.data_id);
 		}
 	private:
-		NodeDataHolder _data_table[Node::get_nodes_count()];
-		std::tuple<hive::Hive<Args> ...> _hives;
+		std::tuple<arena::Arena<Args> ...> _hives;
 	};
 }

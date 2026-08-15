@@ -1,7 +1,9 @@
 #pragma once
 
 #include "lexer.hpp"
+#include "new_ast.h"
 #include "nodes.hpp"
+#include "node_data.h"
 
 class Parser
 {
@@ -17,44 +19,44 @@ public:
 
 	Parser(std::vector<Token>&& tokens);
 
-	Node* add_tokens(const std::vector<Token>& tokens);
+	new_ast::Node add_tokens(const std::vector<Token>& tokens);
 
-	Node* parse();
+	new_ast::Node parse();
 
 private:
 	void eat(TokType tok_type);
 
-	std::vector<Node*> statement_list();
+	std::vector<new_ast::Node> statement_list();
 
-	Node* statement();
+	new_ast::Node statement();
 
-	Node* expression();
+	new_ast::Node expression();
 
-	Node* bool_expression();
+	new_ast::Node bool_expression();
 
-	Node* number_expression();
+	new_ast::Node number_expression();
 
-	Node* string_expression();
+	new_ast::Node string_expression();
 
-	Node* array_expression();
+	new_ast::Node array_expression();
 
-	Node* array_element();
+	new_ast::Node array_element();
 
-	Node* string_factor();
+	new_ast::Node string_factor();
 
-	Node* factor();
+	new_ast::Node factor();
 
-	Node* term();
+	new_ast::Node term();
 
-	Node* bool_term();
+	new_ast::Node bool_term();
 
-	Variable* create_variable();
+	new_ast::Node create_variable();
 
-	Variable* get_variable();
+	std::optional<new_ast::Node> get_variable();
 
 	TypeContext get_variable_context(const std::string& name) const;
 
-	Node* resolve_id();
+	new_ast::Node resolve_id();
 
 private:
 	
@@ -62,12 +64,12 @@ private:
 	struct VariableInfo
 	{
 		TypeContext context;
-		Variable* variable;
+		new_ast::Node var_node;
 	};
 
 	TypeContext get_expression_context() const;
 
-	Scope* _current_scope = nullptr;
+	data::Scope* _current_scope = nullptr;
 	std::vector<Token> _tokens;
 	std::vector<Token>::const_iterator _current;
 	bool _skip_semicolon = false;

@@ -3,13 +3,15 @@
 #include <cassert>
 #include <format>
 
+using namespace data;
+
 Parser::Parser(std::vector<Token>&& tokens)
 	:_tokens{std::move(tokens)}
 	,_current(_tokens.begin())
 {
 }
 
-Node* Parser::add_tokens(const std::vector<Token>& tokens)
+new_ast::Node Parser::add_tokens(const std::vector<Token>& tokens)
 {
 	const auto size = _tokens.size();
 	_tokens.insert(_tokens.end(), tokens.begin(), tokens.end());
@@ -18,10 +20,13 @@ Node* Parser::add_tokens(const std::vector<Token>& tokens)
 	return statement();
 }
 
-Node* Parser::parse()
+new_ast::Node Parser::parse()
 {
 	auto nodes = statement_list();
-	return new Scope(std::move(nodes));
+
+	
+	//return { new_ast::Node::Index::Scope, storage.create_node<Scope>(std::move(nodes)) };
+	return storage.create_node<Scope>(std::move(nodes));
 }
 
 void Parser::eat(TokType tok_type)
@@ -37,9 +42,9 @@ void Parser::eat(TokType tok_type)
 	}
 }
 
-std::vector<Node*> Parser::statement_list()
+std::vector<new_ast::Node> Parser::statement_list()
 {
-	std::vector<Node*> nodes;
+	std::vector<new_ast::Node> nodes;
 
 	while(_current != _tokens.end())
 	{
@@ -63,48 +68,43 @@ std::vector<Node*> Parser::statement_list()
 	return nodes;
 }
 
-Node* Parser::statement()
+new_ast::Node Parser::statement()
 {
 	if(_current == _tokens.end())
 	{
-		return nullptr;
+		return {};
 	}
 
 	if(_current->type == TT_Let)
 	{
-		if (const Variable* var = create_variable())
-		{
-			eat(TT_Assign);
+		auto var_node = create_variable();
+		eat(TT_Assign);
 
-			Assign* res;
-			if (_current->type == TT_Fn)
-			{
-				res = new Assign(var->get_stack_index(), statement(), true);
-			}
-			else
-			{
-				res = new Assign(var->get_stack_index(), expression(), true);
-			}
+		new_ast::Node obj = _current->type == TT_Fn ?
+			statement() : expression();
 
-			_variables.emplace(var->get_name(), _current_context);
+		auto* var = storage.get_data<Variable>(var_node);
+		//_variables.emplace(var->_name, _current_context);
 
-			return res;
-		}
+		return storage.create_node<Assign>(var->_index, obj, true);
 	}
 
 	if(_current->type == TT_Id)
 	{
-		auto node = resolve_id();
+		const auto node = resolve_id();
 
-		const auto var = dynamic_cast<Variable*>(node);
-		if(!var)
+		if(node.index == NodeType::Call)
 		{
 			return node;
 		}
 
+		const auto var = storage.get_data<Variable>(node);
+		
 		eat(TT_Assign);
 
-		return new Assign(var->get_stack_index(), expression());
+		return storage.create_node<Assign>(var->_index, expression(), false);
+	
+		//new Assign(var->get_stack_index(), expression());
 	}
 
 	if(_current->type == TT_ScopeBegin)
@@ -117,7 +117,9 @@ Node* Parser::statement()
 		--_scope_level;
 		_skip_semicolon = true;
 		_index_counter = base_index;
-		return new Scope(std::move(nodes));
+
+		return storage.create_node<Scope>(std::move(nodes));
+		// new Scope(std::move(nodes));
 	}
 
 	if(_current->type == TT_Fn)
@@ -136,8 +138,9 @@ Node* Parser::statement()
 		while (_current->type == TT_Id)
 		{
 			const std::string param_name = std::format("param_{}_{}", _current_func, _current->name);
-			auto* var = new Variable(std::string{param_name}, param_index);
-			_variables.emplace(param_name, VariableInfo{ TypeContext::None, var });
+			const auto var_node = storage.create_node<Variable>( param_name, static_cast<size_t>(param_index));
+			//auto* var = new Variable(std::string{param_name}, param_index);
+			_variables.emplace(param_name, VariableInfo{ TypeContext::None, var_node });
 			++_index_counter;
 			eat(TT_Id);
 			if (_current->type != TT_RParen)
@@ -149,49 +152,57 @@ Node* Parser::statement()
 		}
 		eat(TT_RParen);
 		
-		const auto scope = dynamic_cast<Scope*>(statement());
+		const auto scope = statement();
+		auto s = storage.get_data_mut<Scope>(scope);
 		_index_counter = prev_counter;
-		return new Function(scope, std::move(_current_func), param_index);
+		return storage.create_node<Function>(s, std::move(_current_func), param_index );//new Function(scope, std::move(_current_func), param_index);
 	}
 
 	if(_current->type == TT_Ret)
 	{
 		eat(TT_Ret);
-		return new Return(expression());
+
+		//new Return(expression());
+		return storage.create_node<Return>( expression() );
 	}
 
 	if(_current->type == TT_If)
 	{
 		eat(TT_If);
 		eat(TT_LParen);
-		Node* expr = expression();
+		new_ast::Node expr = expression();
 		eat(TT_RParen);
-		const auto scope = dynamic_cast<Scope*>(statement());
+		auto s = statement();
+		Scope* scope = storage.get_data_mut<Scope>(s);
 		Scope* else_branch = nullptr;
 		if(_current != _tokens.end() && _current->type == TT_Else)
 		{
 			eat(TT_Else);
 			_skip_semicolon = false;
-			else_branch = dynamic_cast<Scope*>(statement());
+			s = statement();
+			else_branch = storage.get_data_mut<Scope>(s);
 		}
-
-		return new BranchIfElse(expr, scope, else_branch);
+		return  storage.create_node<BranchIfElse>( expression(), scope, else_branch );
+		//return new BranchIfElse(expr, scope, else_branch);
 	}
 
 	if(_current->type == TT_Loop)
 	{
 		eat(TT_Loop);
 		eat(TT_LParen);
-		Node* expr = expression();
+		new_ast::Node expr = expression();
 		eat(TT_RParen);
-		const auto scope = dynamic_cast<Scope*>(statement());
-		return new Loop(expr, scope);
+		//const auto scope = dynamic_cast<Scope*>(statement());
+		auto s = statement();
+		Scope* scope = storage.get_data_mut<Scope>(s);
+		return storage.create_node<Loop>(expr, scope);
+		//return new Loop(expr, scope);
 	}
 
-	return nullptr;
+	return {};
 }
 
-Node* Parser::expression()
+new_ast::Node Parser::expression()
 {
 	_current_context = get_expression_context();
 	
@@ -217,10 +228,10 @@ Node* Parser::expression()
 	}
 	assert(false);
 
-	return nullptr;
+	return {};
 }
 
-Node* Parser::bool_expression()
+new_ast::Node Parser::bool_expression()
 {
 	auto node = bool_term();
 
@@ -228,13 +239,14 @@ Node* Parser::bool_expression()
 	{
 		const auto op = _current->type == TT_Plus ? Operation::Plus : Operation::Minus;
 		eat(_current->type);
-		node = new BinaryOperation(node, term(), op);
+		node = storage.create_node<BinaryOperation>(node, term(), op );
+		//node = new BinaryOperation(node, term(), op);
 	}
 
 	return node;
 }
 
-Node* Parser::number_expression()
+new_ast::Node Parser::number_expression()
 {
 	auto node = term();
 
@@ -242,32 +254,35 @@ Node* Parser::number_expression()
 	{
 		const auto op = _current->type == TT_Plus ? Operation::Plus : Operation::Minus;
 		eat(_current->type);
-		node = new BinaryOperation(node, term(), op);
+		//node = new BinaryOperation(node, term(), op);
+		node = storage.create_node<BinaryOperation>( node, term(), op );
 	}
 
 	return node;
 }
 
-Node* Parser::string_expression()
+new_ast::Node Parser::string_expression()
 {
-	Node* node = string_factor();
+	new_ast::Node node = string_factor();
 	while (_current->type == TT_Plus)
 	{
 		eat(TT_Plus);
-		node = new BinaryOperation(node, string_factor(), Operation::Plus);
+		//node = new BinaryOperation(node, string_factor(), Operation::Plus);
+		node = storage.create_node<BinaryOperation>( node, string_factor(), Operation::Plus );
+		//node = new BinaryOperation(node, term(), op);
 	}
 
 	return node;
 }
 
-Node* Parser::array_expression()
+new_ast::Node Parser::array_expression()
 {
 	if (_current->type == TT_ArrayBegin)
 	{
 		eat(TT_ArrayBegin);
 
-		std::vector<Node*> nodes;
-		Node* element = nullptr;
+		std::vector<new_ast::Node> nodes;
+		new_ast::Node element;
 		do
 		{
 			element = array_element();
@@ -282,7 +297,8 @@ Node* Parser::array_expression()
 
 		eat(TT_ArrayEnd);
 
-		return new ArrayNode(std::move(nodes));
+		//return new ArrayNode(std::move(nodes));
+		return storage.create_node<Array>(std::move(nodes));
 	}
 
 	if(_current->type == TT_Id)
@@ -290,10 +306,10 @@ Node* Parser::array_expression()
 		return resolve_id();
 	}
 
-	return nullptr;
+	return {};
 }
 
-Node* Parser::array_element()
+new_ast::Node Parser::array_element()
 {
 	if (_current->type == TT_Id)
 	{
@@ -303,13 +319,14 @@ Node* Parser::array_element()
 	{
 		const ObjectPtr f = _current->object;
 		eat(_current->type);
-		return new StackValue(f);
+		//return new StackValue(f);
+		return storage.create_node<StackValue>( f );
 	}
 
-	return nullptr;
+	return {};
 }
 
-Node* Parser::string_factor()
+new_ast::Node Parser::string_factor()
 {
 	if (_current->type == TT_Id)
 	{
@@ -319,24 +336,26 @@ Node* Parser::string_factor()
 	{
 		ObjectPtr f = _current->object;
 		eat(TT_StringLiteral);
-		return new StackValue(f);
+		//return new StackValue(f);
+		return storage.create_node<StackValue>( f );
 	}
 
-	return nullptr;
+	return {};
 }
 
-Node* Parser::factor()
+new_ast::Node Parser::factor()
 {
 	if(_current->type == TT_BoolLiteral)
 	{
 		ObjectPtr f = _current->object;
 		eat(TT_BoolLiteral);
-		return new StackValue(f);
+		//return new StackValue(f);
+		return storage.create_node<StackValue>( f );
 	}
 	if(_current->type == TT_LParen)
 	{
 		eat(TT_LParen);
-		Node* expr = expression();
+		new_ast::Node expr = expression();
 		eat(TT_RParen);
 		return expr;
 	}
@@ -348,13 +367,14 @@ Node* Parser::factor()
 	{
 		ObjectPtr f = _current->object;
 		eat(TT_NumberLiteral);
-		return new StackValue(f);
+		//return new StackValue(f);
+		return  storage.create_node<StackValue>( f );
 	}
 	
-	return nullptr;
+	return {};
 }
 
-Node* Parser::term()
+new_ast::Node Parser::term()
 {
 	auto node = factor();
 
@@ -362,13 +382,14 @@ Node* Parser::term()
 	{
 		const auto op = _current->type == TT_Mul ? Operation::Mul : Operation::Div;
 		eat(_current->type);
-		node = new BinaryOperation(node, factor(), op);
+		//node = new BinaryOperation(node, factor(), op);
+		node = storage.create_node<BinaryOperation>(node, factor(), op);
 	}
 
 	return node;
 }
 
-Node* Parser::bool_term()
+new_ast::Node Parser::bool_term()
 {
 	auto node = factor();
 
@@ -398,37 +419,40 @@ Node* Parser::bool_term()
 			eat(_current->type);
 		}
 
-		node = new BinaryOperation(node, factor(), op);
+		//node = new BinaryOperation(node, factor(), op);
+		node = storage.create_node<BinaryOperation>( node, factor(), op );
 	}
 
 	return node;
 }
 
-Variable* Parser::create_variable()
+new_ast::Node Parser::create_variable()
 {
 	eat(TT_Let);
 
 	std::string name = std::format("{}_{}_{}", _scope_level, _current->name, _current_func);
 	eat(TT_Id);
 	const size_t var_offset = _index_counter++;
-	auto* var = new Variable(std::move(name), var_offset);
-	_variables.emplace(name, VariableInfo{ get_expression_context(), var });
+	//auto* var = new Variable(std::move(name), var_offset);
+	const auto var_node = storage.create_node<Variable>( name, var_offset );
 
-	return var;
+	_variables.emplace(name, VariableInfo{ get_expression_context(), var_node });
+
+	return var_node;
 }
 
-Variable* Parser::get_variable()
+std::optional<new_ast::Node> Parser::get_variable()
 {
 	std::string name = _current->name;
 	eat(TT_Id);
 
-	auto find_var = [this](const std::string& name) -> Variable*
+	auto find_var = [this](const std::string& name) -> std::optional<new_ast::Node>
 	{
 		if (const auto it = _variables.find(name); it != _variables.end())
 		{
-			return it->second.variable;
+			return it->second.var_node;
 		}
-		return nullptr;
+		return std::nullopt;
 	};
 
 	if(!_current_func.empty())
@@ -453,7 +477,7 @@ Variable* Parser::get_variable()
 		--scope;
 	}
 
-	return nullptr;
+	return std::nullopt;
 }
 
 Parser::TypeContext Parser::get_variable_context(const std::string& name) const
@@ -499,15 +523,15 @@ Parser::TypeContext Parser::get_variable_context(const std::string& name) const
 	return TypeContext::None;
 }
 
-Node* Parser::resolve_id()
+new_ast::Node Parser::resolve_id()
 {
 	std::string name = _current->name;
-	const auto var = get_variable();
+	auto var_node = get_variable();
 
-	if (!var && _current->type == TT_LParen)
+	if (!var_node && _current->type == TT_LParen)
 	{
 		eat(TT_LParen);
-		std::vector<Node*> args;
+		std::vector<new_ast::Node> args;
 		while (_current->type != TT_RParen)
 		{
 			args.push_back(expression());
@@ -517,10 +541,12 @@ Node* Parser::resolve_id()
 			}
 		}
 		eat(TT_RParen);
-		return new Call(std::move(args), std::move(name));
+		//return new Call(std::move(args), std::move(name));
+
+		return storage.create_node<Call>(std::move(args), std::move(name));
 	}
 
-	return var;
+	return var_node.value();
 }
 
 Parser::TypeContext Parser::get_expression_context() const
