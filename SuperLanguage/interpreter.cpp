@@ -2,10 +2,38 @@
 #include "log.hpp"
 #include <cassert>
 
+using namespace data;
+using namespace new_ast;
+
 Interpreter::Interpreter(new_ast::Node scope)
 	:_root_scope(scope)
 	, _current_scope()
-{}
+{
+	
+	/*Id = 0,
+			Assign,
+			BinaryOp,
+			Scope,
+			Variable,
+			StackValue,
+			Function,
+			Call,
+			Return,
+			BranchIfElse,
+			Loop,
+			Array,*/
+	_table[Node::index_as_int(NodeType::Assign)] = &Interpreter::run_visit<Assign>;
+	_table[Node::index_as_int(NodeType::BinaryOp)] = &Interpreter::run_visit<BinaryOperation>;
+	_table[Node::index_as_int(NodeType::Scope)] = &Interpreter::run_visit<Scope>;
+	_table[Node::index_as_int(NodeType::Variable)] = &Interpreter::run_visit<Variable>;
+	_table[Node::index_as_int(NodeType::StackValue)] = &Interpreter::run_visit<StackValue>;
+	_table[Node::index_as_int(NodeType::Function)] = &Interpreter::run_visit<Function>;
+	_table[Node::index_as_int(NodeType::Call)] = &Interpreter::run_visit<Call>;
+	_table[Node::index_as_int(NodeType::Return)] = &Interpreter::run_visit<Return>;
+	_table[Node::index_as_int(NodeType::BranchIfElse)] = &Interpreter::run_visit<BranchIfElse>;
+	_table[Node::index_as_int(NodeType::Loop)] = &Interpreter::run_visit<Loop>;
+	_table[Node::index_as_int(NodeType::Array)] = &Interpreter::run_visit<Array>;
+}
 
 Interpreter::~Interpreter()
 {
@@ -14,6 +42,14 @@ Interpreter::~Interpreter()
 
 void Interpreter::run()
 {
+	const auto* scope = storage.get_data<Scope>(_root_scope);
+
+	for(const auto& node : scope->_nodes)
+	{
+		const auto method = _table[Node::index_as_int(node.index)];
+
+		(this->*method)(node);
+	}
 }
 
 ObjectPtr Interpreter::get_stack_variable(size_t index) const
@@ -36,44 +72,59 @@ size_t Interpreter::get_stack_size() const
 	return _stack.size();
 }
 
-void Interpreter::add_internal_function(data::InternalFunction* func)
+void Interpreter::add_internal_function(const std::string& name, data::Function::InternalFunc func)
 {
-	//_functions[func->_name] = func;
+	const auto scope_node = storage.create_node<Scope>(std::vector<Node>{});
+
+	auto func_node = storage.create_node<Function>(name, std::move(func), storage.get_data_mut<Scope>(scope_node));
+
+	_functions[name] = storage.get_data_mut<Function>(func_node);
 }
 
 void Interpreter::run_once(new_ast::Node node)
 {
 	//node->accept(*this);
 }
-/*
-void Interpreter::visit(Scope* node)
+
+void Interpreter::execute(new_ast::Node node)
+{
+	if (const auto method = _table[Node::index_as_int(node.index)]) 
+	{
+		(this->*method)(node);
+	}
+}
+
+void Interpreter::visit(Scope* scope)
 {
 	const auto parent_scope = _current_scope;
-	_current_scope = node;
+	_current_scope = scope;
 	if (parent_scope)
 	{
-		_current_scope->set_stack_base(parent_scope->get_stack_base());
+		_current_scope->_base_index = parent_scope->_base_index;
+		//_current_scope->set_stack_base(parent_scope->get_stack_base());
 	}
-	auto& nodes = node->get_nodes();
 
-	for (Node* child : nodes)
+	for (Node node : scope->_nodes)
 	{
-		child->accept(*this);
+		//child->accept(*this);
+		execute(node);
 	}
 
 	if (_current_scope)
 	{
-		_stack.resize(_stack.size() - _current_scope->get_variable_count());
+		_stack.resize(_stack.size() - _current_scope->_variable_count);
 	}
 	_current_scope = parent_scope;
 }
 
-void Interpreter::visit(BinaryOperation* node)
+void Interpreter::visit(BinaryOperation* bin_op)
 {
-	node->get_left()->accept(*this);
-	node->get_right()->accept(*this);
+	//node->get_left()->accept(*this);
+	//node->get_right()->accept(*this);
+	execute(bin_op->_left);
+	execute(bin_op->_right);
 
-	switch (node->get_operation())
+	switch (bin_op->_operation)
 	{
 	case Operation::Plus:			eval_plus();			break;
 	case Operation::Minus:			eval_minus();			break;
@@ -87,9 +138,9 @@ void Interpreter::visit(BinaryOperation* node)
 	}
 }
 
-void Interpreter::visit(Variable* node)
+void Interpreter::visit(Variable* var)
 {
-	const auto index = get_absolute_address(node->get_stack_index());
+	const auto index = get_absolute_address(var->_index);
 
 	if (index < _stack.size())
 	{
@@ -101,46 +152,48 @@ void Interpreter::visit(Variable* node)
 	}
 }
 
-void Interpreter::visit(Assign* node)
+void Interpreter::visit(Assign* assign)
 {
-	if (auto scope = dynamic_cast<Scope*>(node->get_expression()))
+	if (assign->_expression.index == NodeType::Scope)
 	{
+		Scope* scope = storage.get_data_mut<Scope>(assign->_expression);
 		_stack.push_back(std::make_shared<Callable>(scope));
 	}
 	else
 	{
-		node->get_expression()->accept(*this);
+		//node->get_expression()->accept(*this);
+		execute(assign->_expression);
 	}
 
 	const auto val = _stack.back();
 	_stack.pop_back();
 
-	if (node->is_declaration())
+	if (assign->_declaration)
 	{
-		allocate_stack_variable(node->get_var_index());
-		set_stack_variable(node->get_var_index(), val);
+		allocate_stack_variable(assign->_var_index);
+		set_stack_variable(assign->_var_index, val);
 	}
-	else if (!set_stack_variable(node->get_var_index(), val))
+	else if (!set_stack_variable(assign->_var_index, val))
 	{
 		LOG_INFO("Failed to assign, variable \'{}\' not exist in current scope", node->get_var_index());
 	}
 }
 
-void Interpreter::visit(StackValue* node)
+void Interpreter::visit(StackValue* sval)
 {
-	_stack.emplace_back(node->get_object());
+	_stack.emplace_back(sval->_value);
 }
 
-void Interpreter::visit(ArrayNode* node)
+void Interpreter::visit(Array* arr)
 {
-	const auto& array_nodes = node->get_array_nodes();
+	const auto& array_nodes = arr->_array_nodes;
 
 	std::vector<ObjectPtr> array_objects;
 	for (const auto& node : array_nodes)
 	{
 		const auto stack_size = _stack.size();
 
-		node->accept(*this);
+		execute(node);
 
 		if (stack_size < _stack.size())
 		{
@@ -152,43 +205,36 @@ void Interpreter::visit(ArrayNode* node)
 	_stack.emplace_back(std::make_shared<ArrayObj>(array_objects));
 }
 
-void Interpreter::visit(Function* node)
+void Interpreter::visit(Function* func)
 {
-	const auto& name = node->get_name();
+	const auto& name = func->_name;
 	if (_functions.find(name) == _functions.end())
 	{
-		_functions[name] = node;
+		_functions[name] = func;
 	}
 }
 
-void Interpreter::visit(InternalFunction* node)
+void Interpreter::visit(Call* call)
 {
-	// ? 
-}
+	LOG_INFO("Call function {}", func->get_name());
 
-void Interpreter::visit(Call* node)
-{
-	if (const auto func = get_function(node))
+	if (const auto func = get_function(call))
 	{
-		LOG_INFO("Call function {}", func->get_name());
-
 		const auto base_index = _stack.size();
-		const auto fn_scope = func->get_scope();
-		fn_scope->reset();
-		const auto& args = node->get_args();
-		LOG_INFO("Function args begin");
-		for (const auto arg : args)
-		{
-			const auto prev_size = _stack.size();
-			arg->accept(*this);
-			fn_scope->add_variable();
-			const auto str_val = print_value(_stack.back());
-			LOG_INFO("Arg {} set value to {}", prev_size, str_val);
-		}
-		LOG_INFO("Function args end");
+		func->_scope->reset();
 
-		_call_stack.emplace_back(func->get_name(), base_index);
-		func->run(this, base_index);
+		prepare_function_args(func->_scope, call->_args);
+
+		_call_stack.emplace_back(func->_name, base_index);
+		//func->run(this, base_index);
+		func->_scope->set_stack_base(base_index);
+		if(func->_internal_fn)
+		{
+			func->_internal_fn(this, func->_scope);
+		}
+		else {
+			visit(func->_scope);
+		}
 
 		if (_return_value)
 		{
@@ -202,28 +248,31 @@ void Interpreter::visit(Call* node)
 	}
 }
 
-void Interpreter::visit(Return* node)
+void Interpreter::visit(Return* ret)
 {
-	if (const auto expr = node->get_expression())
+	const auto expr = ret->_expression;
+	const auto prev_size = _stack.size();
+	//expr->accept(*this);
+	execute(expr);
+	if (_stack.size() > prev_size)
 	{
-		const auto prev_size = _stack.size();
-		expr->accept(*this);
-
-		if (_stack.size() > prev_size)
-		{
-			_return_value = _stack.back();
-			_stack.pop_back();
-		}
+		_return_value = _stack.back();
+		_stack.pop_back();
 	}
 }
 
-void Interpreter::visit(BranchIfElse* node)
+void Interpreter::visit(BranchIfElse* branch)
 {
-	node->get_expression()->accept(*this);
+	//node->get_expression()->accept(*this);
+	execute(branch->_expression);
 	bool value;
 	if (pop_stack(value))
 	{
-		node->execute(*this, value);
+		//node->execute(*this, value);
+		Scope* s = value ? branch->_scope : branch->_else_scope;
+		if (s) {
+			visit(s);
+		}
 	}
 	else
 	{
@@ -231,10 +280,10 @@ void Interpreter::visit(BranchIfElse* node)
 	}
 }
 
-void Interpreter::visit(Loop* node)
+void Interpreter::visit(Loop* loop)
 {
-	const auto expr = node->get_expression();
-	const auto scope = node->get_scope();
+	const auto expr = loop->_expression;
+	const auto scope = loop->_scope;
 	if (!scope)
 	{
 		LOG_ERROR("Failed to execute loop, no scope to execute");
@@ -244,14 +293,16 @@ void Interpreter::visit(Loop* node)
 	bool value = false;
 	do
 	{
-		expr->accept(*this);
+		execute(expr);
+		//expr->accept(*this);
 		if (pop_stack(value))
 		{
 			if (!value)
 			{
 				break;
 			}
-			scope->accept(*this);
+			//scope->accept(*this);
+			visit(scope);
 		}
 		else
 		{
@@ -260,7 +311,6 @@ void Interpreter::visit(Loop* node)
 		}
 	} while (value);
 }
-*/
 
 void Interpreter::eval_plus()
 {
@@ -330,29 +380,7 @@ void Interpreter::eval_equal_less()
 
 std::string Interpreter::print_value(ObjectPtr value) const
 {
-	int ival;
-	if (value->get(&ival))
-	{
-		return std::format("value: {}", ival);
-	}
-
-	float fval;
-	if (value->get(&fval))
-	{
-		return std::format("value: {}", fval);
-	}
-
-	std::string s;
-	if (value->get(&s))
-	{
-		return std::format("value: {}", s);
-	}
-	bool bval;
-	if (value->get(&bval))
-	{
-		return std::format("value: {}", bval);
-	}
-	return {};
+	return std::format("value: {}", value->to_string());
 }
 
 size_t Interpreter::get_absolute_address(size_t index) const
@@ -395,20 +423,31 @@ data::Function* Interpreter::get_function(data::Call* node)
 	const std::string name{ node->_function_name };
 	if (const auto it = _functions.find(name); it != _functions.end())
 	{
-		//return it->second;
+		return it->second;
 	}
-	else
-	{
-		const auto index = get_absolute_address(node->_var_index);
 
-		if (_stack.size() < index)
-		{
-			data::Function* func = nullptr;
-			if (_stack[index]->get(&func) && func)
-			{
-				return func;
-			}
-		}
+	const auto index = get_absolute_address(node->_var_index);
+
+	if (_stack.size() < index)
+	{
+		data::Function* func = nullptr;
+		_stack[index]->get(&func);
+		return func;
 	}
 	return nullptr;
+}
+
+void Interpreter::prepare_function_args(Scope* scope, const std::vector<new_ast::Node>& args)
+{
+	LOG_INFO("Function args begin");
+	for (const auto arg : args)
+	{
+		const auto prev_size = _stack.size();
+		//arg->accept(*this);
+		execute(arg);
+		scope->add_variable();
+		const auto str_val = print_value(_stack.back());
+		LOG_INFO("Arg {} set value to {}", prev_size, str_val);
+	}
+	LOG_INFO("Function args end");
 }

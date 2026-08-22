@@ -182,7 +182,7 @@ new_ast::Node Parser::statement()
 			s = statement();
 			else_branch = storage.get_data_mut<Scope>(s);
 		}
-		return  storage.create_node<BranchIfElse>( expression(), scope, else_branch );
+		return  storage.create_node<BranchIfElse>( expr, scope, else_branch );
 		//return new BranchIfElse(expr, scope, else_branch);
 	}
 

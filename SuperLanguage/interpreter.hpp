@@ -25,7 +25,7 @@ public:
 
 	size_t get_stack_size() const;
 
-	void add_internal_function(data::InternalFunction* func);
+	void add_internal_function(const std::string& name, data::Function::InternalFunc func);
 
 	void run_once(new_ast::Node node);
 
@@ -40,31 +40,30 @@ public:
 	}
 
 private:
-	/*
-	void visit(Scope* node) override;
+	void execute(new_ast::Node node);
 
-	void visit(BinaryOperation* node) override;
+	void visit(data::Scope* node);
 
-	void visit(Variable* node) override;
+	void visit(data::BinaryOperation* node);
 
-	void visit(Assign* node) override;
+	void visit(data::Variable* node);
 
-	void visit(StackValue* node) override;
+	void visit(data::Assign* node);
 
-	void visit(ArrayNode* node) override;
+	void visit(data::StackValue* node);
 
-	void visit(Function* node) override;
+	void visit(data::Array* node);
 
-	void visit(InternalFunction* node) override;
+	void visit(data::Function* node);
 
-	void visit(Call* node) override;
+	void visit(data::Call* node);
 
-	void visit(Return* node) override;
+	void visit(data::Return* node);
 
-	void visit(BranchIfElse* node) override;
+	void visit(data::BranchIfElse* node);
 
-	void visit(Loop* node) override;
-	*/
+	void visit(data::Loop* node);
+	
 	void eval_plus();
 
 	void eval_minus();
@@ -157,11 +156,22 @@ private:
 	bool set_stack_variable(size_t index, ObjectPtr object);
 
 	data::Function* get_function(data::Call* node);
+
+	void prepare_function_args(data::Scope* scope, const std::vector<new_ast::Node>& args);
+
+	template <typename T>
+	void run_visit(new_ast::Node node)
+	{
+		T* d = data::storage.get_data_mut<T>(node);
+		visit(d);
+	}
 private:
 	new_ast::Node _root_scope;
 	data::Scope* _current_scope;
-	std::map<std::string, new_ast::Node> _functions;
+	std::map<std::string, data::Function*> _functions;
 	std::vector<ObjectPtr> _stack;
 	ObjectPtr _return_value;
 	std::vector<std::pair<std::string, size_t>> _call_stack;
+	using Func = void (Interpreter::*)(new_ast::Node);
+	Func _table[new_ast::Node::get_nodes_count()] = {nullptr};
 };

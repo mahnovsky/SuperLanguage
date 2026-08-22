@@ -12,14 +12,12 @@ namespace new_ast
 	{
 		enum class Index : std::uint8_t
 		{
-			Id = 0,
-			Assign,
+			Assign = 0,
 			BinaryOp,
 			Scope,
 			Variable,
 			StackValue,
 			Function,
-			InternalFunction,
 			Call,
 			Return,
 			BranchIfElse,
@@ -35,6 +33,26 @@ namespace new_ast
 		Node()
 			:index(Index::Size)
 		{}
+
+		Node(const Node& other)
+			:index(other.index)
+			,data_id(other.data_id)
+		{}
+
+		Node(Node&& other) noexcept
+			:index(other.index)
+			,data_id(other.data_id)
+		{
+			other.data_id = {};
+		}
+
+		Node& operator = (const Node& other)
+		{
+			index = other.index;
+			data_id = other.data_id;
+
+			return *this;
+		}
 
 		static constexpr std::uint32_t get_nodes_count()
 		{

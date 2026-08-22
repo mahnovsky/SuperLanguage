@@ -2,198 +2,204 @@
 
 #include "interpreter.hpp"
 
-void BinaryOperation::accept(NodeVisitor& visitor)
+namespace old_nodes
 {
-	visitor.visit(this);
-}
-
-Scope::Scope(std::vector<Node*>&& nodes)
-	:_nodes(std::move(nodes))
-{
-}
-
-Scope::~Scope()
-{
-	for (const auto node : _nodes)
+	void BinaryOperation::accept(NodeVisitor& visitor)
 	{
-		delete node;
+		visitor.visit(this);
 	}
-}
 
-void Scope::reset()
-{
-	_base_index = 0;
-	_variable_count = 0;
-}
-
-void Scope::accept(NodeVisitor& visitor)
-{
-	visitor.visit(this);
-}
-
-void Scope::add_variable()
-{
-	++_variable_count;
-}
-
-size_t Scope::get_variable_count() const
-{
-	return _variable_count;
-}
-
-void Scope::set_variable_count(size_t var_count)
-{
-	_variable_count = var_count;
-}
-
-std::vector<size_t> Scope::get_variables() const
-{
-	std::vector<size_t> res;
-	auto from = _base_index;
-	const auto end = _base_index + _variable_count;
-	while(from < end)
+	Scope::Scope(std::vector<Node*>&& nodes)
+		:_nodes(std::move(nodes))
 	{
-		res.push_back(from++);
 	}
-	return res;
-}
 
-void Scope::set_stack_base(size_t base)
-{
-	_base_index = base;
-}
-
-void Assign::accept(NodeVisitor& visitor)
-{
-	visitor.visit(this);
-}
-
-void Variable::accept(NodeVisitor& visitor)
-{
-	visitor.visit(this);
-}
-
-void Call::accept(NodeVisitor& visitor)
-{
-	visitor.visit(this);
-}
-
-void StackValue::accept(NodeVisitor& visitor)
-{
-	visitor.visit(this);
-}
-
-Function::Function(Scope* scope, std::string&& name, int params)
-	:_scope(scope)
-	,_name(std::move(name))
-	,_param_count(params)
-{
-	
-}
-
-void Function::accept(NodeVisitor& visitor)
-{
-	visitor.visit(this);
-}
-
-void Function::run(Interpreter* interp, size_t stack_base)
-{
-	if(_scope)
+	Scope::~Scope()
 	{
-		_scope->set_stack_base(stack_base);
-		NodeVisitor* visitor = interp;
-		visitor->visit(_scope);
+		for (const auto node : _nodes)
+		{
+			delete node;
+		}
 	}
-}
 
-InternalFunction::InternalFunction(std::string&& name, Func f)
-	:Function(new Scope({}), std::move(name), 0)
-	,_func(std::move(f))
-{
-}
-
-void InternalFunction::run(Interpreter* interp, size_t stack_base)
-{
-	if(const auto scope = get_scope())
+	void Scope::reset()
 	{
-		scope->set_stack_base(stack_base);
+		_base_index = 0;
+		_variable_count = 0;
 	}
-	if(_func)
+
+	void Scope::accept(NodeVisitor& visitor)
 	{
-		_func(interp, get_scope());
+		visitor.visit(this);
 	}
-}
 
-void InternalFunction::accept(NodeVisitor& visitor)
-{
-	visitor.visit(this);
-}
-
-Return::Return(Node* expression)
-	:_expression(expression)
-{
-}
-
-void Return::accept(NodeVisitor& visitor)
-{
-	visitor.visit(this);
-}
-
-Node* Return::get_expression() const
-{
-	return _expression;
-}
-
-BranchIfElse::BranchIfElse(Node* expression, Scope* scope, Scope* else_scope)
-	:_expression(expression)
-	,_scope(scope)
-	,_else_scope(else_scope)
-{}
-
-void BranchIfElse::accept(NodeVisitor& visitor)
-{
-	visitor.visit(this);
-}
-
-Node* BranchIfElse::get_expression() const
-{
-	return _expression;
-}
-
-void BranchIfElse::execute(NodeVisitor& visitor, bool main_branch)
-{
-	if(main_branch)
+	void Scope::add_variable()
 	{
-		visitor.visit(_scope);
+		++_variable_count;
 	}
-	else if(_else_scope)
+
+	size_t Scope::get_variable_count() const
 	{
-		visitor.visit(_else_scope);
+		return _variable_count;
 	}
-}
 
-Loop::Loop(Node* expr, Scope* scope)
-	:_expression(expr)
-	, _scope(scope)
-{}
+	void Scope::set_variable_count(size_t var_count)
+	{
+		_variable_count = var_count;
+	}
 
-void Loop::accept(NodeVisitor& visitor)
-{
-	visitor.visit(this);
-}
+	std::vector<size_t> Scope::get_variables() const
+	{
+		std::vector<size_t> res;
+		auto from = _base_index;
+		const auto end = _base_index + _variable_count;
+		while (from < end)
+		{
+			res.push_back(from++);
+		}
+		return res;
+	}
 
-Node* Loop::get_expression() const
-{
-	return _expression;
-}
+	void Scope::set_stack_base(size_t base)
+	{
+		_base_index = base;
+	}
 
-ArrayNode::ArrayNode(std::vector<Node*> array_nodes)
-	:_array_nodes(std::move(array_nodes))
-{
-	
-}
+	void Assign::accept(NodeVisitor& visitor)
+	{
+		visitor.visit(this);
+	}
 
-void ArrayNode::accept(NodeVisitor& visitor)
-{
-	visitor.visit(this);
+	void Variable::accept(NodeVisitor& visitor)
+	{
+		visitor.visit(this);
+	}
+
+	void Call::accept(NodeVisitor& visitor)
+	{
+		visitor.visit(this);
+	}
+
+	void StackValue::accept(NodeVisitor& visitor)
+	{
+		visitor.visit(this);
+	}
+
+	Function::Function(Scope* scope, std::string&& name, int params)
+		:_scope(scope)
+		, _name(std::move(name))
+		, _param_count(params)
+	{
+
+	}
+
+	void Function::accept(NodeVisitor& visitor)
+	{
+		visitor.visit(this);
+	}
+
+	void Function::run(Interpreter* interp, size_t stack_base)
+	{
+		if (_scope)
+		{
+			_scope->set_stack_base(stack_base);
+			//NodeVisitor* visitor = interp;
+			//visitor->visit(_scope);
+		}
+	}
+
+	InternalFunction::InternalFunction(std::string&& name, Func f)
+		:Function(new Scope({}), std::move(name), 0)
+		, _func(std::move(f))
+	{
+	}
+
+	void InternalFunction::run(Interpreter* interp, size_t stack_base)
+	{
+		if (const auto scope = get_scope())
+		{
+			scope->set_stack_base(stack_base);
+		}
+		if (_func)
+		{
+			_func(interp, get_scope());
+		}
+	}
+
+	void InternalFunction::accept(NodeVisitor& visitor)
+	{
+		visitor.visit(this);
+	}
+
+	Return::Return(Node* expression)
+		:_expression(expression)
+	{
+	}
+
+	void Return::accept(NodeVisitor& visitor)
+	{
+		visitor.visit(this);
+	}
+
+	Node* Return::get_expression() const
+	{
+		return _expression;
+	}
+
+	BranchIfElse::BranchIfElse(Node* expression, Scope* scope, Scope* else_scope)
+		:_expression(expression)
+		, _scope(scope)
+		, _else_scope(else_scope)
+	{
+	}
+
+	void BranchIfElse::accept(NodeVisitor& visitor)
+	{
+		visitor.visit(this);
+	}
+
+	Node* BranchIfElse::get_expression() const
+	{
+		return _expression;
+	}
+
+	void BranchIfElse::execute(NodeVisitor& visitor, bool main_branch)
+	{
+		if (main_branch)
+		{
+			visitor.visit(_scope);
+		}
+		else if (_else_scope)
+		{
+			visitor.visit(_else_scope);
+		}
+	}
+
+	Loop::Loop(Node* expr, Scope* scope)
+		:_expression(expr)
+		, _scope(scope)
+	{
+	}
+
+	void Loop::accept(NodeVisitor& visitor)
+	{
+		visitor.visit(this);
+	}
+
+	Node* Loop::get_expression() const
+	{
+		return _expression;
+	}
+
+	ArrayNode::ArrayNode(std::vector<Node*> array_nodes)
+		:_array_nodes(std::move(array_nodes))
+	{
+
+	}
+
+	void ArrayNode::accept(NodeVisitor& visitor)
+	{
+		visitor.visit(this);
+	}
+
 }

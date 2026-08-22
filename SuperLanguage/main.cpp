@@ -15,27 +15,30 @@
 
 namespace data
 {
-	//Storage storage;
+	Storage storage;
 }
+
 void init_internal_functions(Interpreter* interp)
 {
-	interp->add_internal_function(new data::InternalFunction("__print", [](Interpreter* interp, data::Scope* s)
+	using namespace data;
+
+	interp->add_internal_function("__print", [](Interpreter* interp, data::Scope* s)
 	{
 		std::string res = "--> ";
 		const auto vars = s->get_variables();
 			
 		for(const auto v : vars)
 		{
-			const auto obj = interp->get_stack_variable(0);
+			const auto obj = interp->get_stack_variable(v);
 
 			res.append(obj->to_string());
 			//res.append(" ");
 		}
 
 		puts(res.c_str());
-	}));
+	});
 
-	interp->add_internal_function(new data::InternalFunction("__dump_callstack", [](Interpreter* interp, data::Scope* s)
+	interp->add_internal_function("__dump_callstack", [](Interpreter* interp, data::Scope* s)
 	{
 		puts("Callstack dump:");
 		const auto& cs = interp->get_call_stack();
@@ -44,8 +47,9 @@ void init_internal_functions(Interpreter* interp)
 			putc('\t', stdout);
 			puts(key.c_str());
 		}
-	}));
-	interp->add_internal_function(new data::InternalFunction("__to_string", [](Interpreter* interp, data::Scope* s)
+	});
+
+	interp->add_internal_function("__to_string", [](Interpreter* interp, data::Scope* s)
 	{
 		const auto vars = s->get_variables();
 		if (vars.size() == 1)
@@ -54,9 +58,9 @@ void init_internal_functions(Interpreter* interp)
 
 			interp->set_return_value(std::make_shared<String>(obj->to_string()));
 		}
-	}));
+	});
 
-	interp->add_internal_function(new data::InternalFunction("__exit", [](Interpreter* interp, data::Scope* s)
+	interp->add_internal_function("__exit", [](Interpreter* interp, data::Scope* s)
 	{
 		const auto vars = s->get_variables();
 		if (vars.size() == 1)
@@ -68,9 +72,9 @@ void init_internal_functions(Interpreter* interp)
 				exit(res);
 			}
 		}
-	}));
+	});
 
-	interp->add_internal_function(new data::InternalFunction("__get_array_element", [](Interpreter* interp, data::Scope* s)
+	interp->add_internal_function("__get_array_element", [](Interpreter* interp, data::Scope* s)
 	{
 		const auto vars = s->get_variables();
 		if (vars.size() == 2)
@@ -85,9 +89,9 @@ void init_internal_functions(Interpreter* interp)
 				interp->set_return_value(arr->at(index));
 			}
 		}
-	}));
+	});
 
-	interp->add_internal_function(new data::InternalFunction("__set_array_element", [](Interpreter* interp, data::Scope* s)
+	interp->add_internal_function("__set_array_element", [](Interpreter* interp, data::Scope* s)
 	{
 		const auto vars = s->get_variables();
 		if (vars.size() == 3)
@@ -106,9 +110,9 @@ void init_internal_functions(Interpreter* interp)
 				}
 			}
 		}
-	}));
+	});
 
-	interp->add_internal_function(new data::InternalFunction("__get_array_size", [](Interpreter* interp, data::Scope* s)
+	interp->add_internal_function("__get_array_size", [](Interpreter* interp, data::Scope* s)
 	{
 		const auto vars = s->get_variables();
 		if (vars.size() == 1)
@@ -121,9 +125,9 @@ void init_internal_functions(Interpreter* interp)
 				interp->set_return_value(std::make_shared<Integer>(arr->size()));
 			}
 		}
-	}));
+	});
 
-	interp->add_internal_function(new data::InternalFunction("__array_append", [](Interpreter* interp, data::Scope* s)
+	interp->add_internal_function("__array_append", [](Interpreter* interp, data::Scope* s)
 	{
 		const auto vars = s->get_variables();
 		if (vars.size() == 2)
@@ -136,7 +140,7 @@ void init_internal_functions(Interpreter* interp)
 				arr->emplace_back(obj);
 			}
 		}
-	}));
+	});
 }
 
 struct Foo

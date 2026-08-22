@@ -61,6 +61,22 @@ namespace data
 			}
 			return res;
 		}
+
+		void reset()
+		{
+			_base_index = 0;
+			_variable_count = 0;
+		}
+
+		void add_variable()
+		{
+			++_variable_count;
+		}
+
+		void set_stack_base(size_t base)
+		{
+			_base_index = base;
+		}
 	};
 
 	struct Variable
@@ -101,29 +117,25 @@ namespace data
 
 	struct Function
 	{
+		using InternalFunc = std::function<void(Interpreter*, Scope*)>;
 		static inline constexpr NodeType _node_type = NodeType::Function;
+
 		Scope* _scope;
 		std::string _name;
 		int _param_count;
+		InternalFunc _internal_fn;
 
 		Function(Scope* s, std::string name, int params)
 			:_scope(s)
-			,_name(name)
+			,_name(std::move(name))
 			,_param_count(params)
 		{}
-	};
 
-	struct InternalFunction
-	{
-		static inline constexpr NodeType _node_type = NodeType::InternalFunction;
-		using Func = std::function<void(Interpreter*, Scope*)>;
-		std::string _name;
-		int _param_count;
-		Func _func;
-
-		InternalFunction(const std::string& name, Func fn)
-			:_name(name)
-			,_func(fn)
+		Function(std::string name, InternalFunc internal_fn, Scope* s)
+			:_scope(s)
+			,_name(std::move(name))
+			,_param_count(0)
+			,_internal_fn(std::move(internal_fn))
 		{}
 	};
 
@@ -185,7 +197,6 @@ namespace data
 		Assign,
 		StackValue,
 		Function,
-		InternalFunction,
 		Call,
 		Return,
 		BranchIfElse,
@@ -193,5 +204,5 @@ namespace data
 		Array
 	>;
 
-	static inline data::Storage storage;
+	extern Storage storage;
 }
